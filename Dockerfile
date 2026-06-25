@@ -34,7 +34,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy app
 COPY app/ /app/app/
-COPY data/ /app/data/ 2>/dev/null || true
 
 # Create directories
 RUN mkdir -p /app/data /models
