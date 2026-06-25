@@ -302,7 +302,7 @@ class InstanceManager:
         cmd.extend(["--n-gpu-layers", str(inst.n_gpu_layers)])
         cmd.extend(["--parallel", str(inst.parallel)])
         if inst.flash_attention:
-            cmd.extend(["--flash-attn"])
+            cmd.extend(["--flash-attn", "on"])
         cmd.extend(inst.additional_args)
         return cmd
 
