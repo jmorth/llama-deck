@@ -1,0 +1,48 @@
+# LlamaDeck — Multi-GPU llama-server management
+#
+# Quick start:
+#   docker compose up -d
+#   Open http://localhost:8080
+#
+# Configuration:
+#   Edit the environment variables below, or create a .env file.
+
+services:
+  llama-deck:
+    build: .
+    container_name: llama-deck
+    restart: unless-stopped
+    ports:
+      - "${MANAGER_PORT:-8080}:8080"
+    environment:
+      - MODELS_DIR=/models
+      - LLAMA_SERVER_BINARY=${LLAMA_SERVER_BINARY:-llama-server}
+      - DATA_DIR=/app/data
+      - PORT=8080
+      - HOST=0.0.0.0
+      - PORT_RANGE_START=${PORT_RANGE_START:-8081}
+      - PORT_RANGE_END=${PORT_RANGE_END:-9000}
+    volumes:
+      # Mount your models directory (read-only is fine, llama-server only reads)
+      - ${MODELS_DIR:-./models}:/models:ro
+      # Persist instance state across restarts
+      - llama-deck-data:/app/data
+      # Mount the llama-server binary from host (if not built into image)
+      # Uncomment the line below and comment out the build above if using a host binary:
+      # - ${LLAMA_SERVER_PATH:-/usr/local/bin/llama-server}:/usr/local/bin/llama-server:ro
+    # GPU passthrough — requires nvidia-container-toolkit on the host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Network mode: host is optional but useful if you need low-latency access
+    # to the llama-server endpoints from other containers or the host.
+    # Uncomment below to use host networking (ports will be directly on host):
+    # network_mode: host
+
+volumes:
+  llama-deck-data:
+    driver: local

@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LlamaDeck</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .fade-in { animation: fadeIn 0.2s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .log-box { font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 12px; line-height: 1.5; }
+    .gpu-card { transition: all 0.15s ease; }
+    .gpu-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .status-running { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+    .status-stopped { background: #6b7280; }
+    .status-starting { background: #f59e0b; animation: pulse 1s infinite; }
+    .status-error { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  </style>
+</head>
+<body class="h-full bg-gray-950 text-gray-100">
+
+<div x-data="llamaDeck()" x-init="init()" class="h-full flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="text-xl font-bold tracking-tight">
+        <span class="text-blue-400">⚡</span> LlamaDeck
+      </div>
+      <span class="text-xs text-gray-500 border border-gray-700 rounded px-2 py-0.5"
+            x-text="status.config ? `Port ${status.config.port_range_start}–${status.config.port_range_end}` : ''"></span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button @click="fetchStatus()" class="text-sm text-gray-400 hover:text-white transition px-3 py-1 rounded hover:bg-gray-800"
+              :class="{ 'animate-spin': refreshing }">
+        ↻ Refresh
+      </button>
+      <button @click="showCreate = true" class="text-sm bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-md font-medium transition">
+        + New Instance
+      </button>
+    </div>
+  </header>
+
+  <div class="flex-1 overflow-y-auto p-6 space-y-6">
+
+    <!-- GPU Grid -->
+    <section>
+      <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">GPUs</h2>
+      <template x-if="status.gpu && status.gpu.available && status.gpu.gpus.length > 0">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <template x-for="gpu in status.gpu.gpus" :key="gpu.index">
+            <div class="gpu-card bg-gray-900 border border-gray-800 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-mono text-sm font-bold" x-text="`GPU ${gpu.index}`"></span>
+                <span class="text-xs text-gray-500" x-text="gpu.utilization_percent + '%'"></span>
+              </div>
+              <div class="text-xs text-gray-400 mb-3 truncate" x-text="gpu.name"></div>
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-gray-500 w-12">VRAM</span>
+                  <div class="flex-1 bg-gray-800 rounded-full h-1.5">
+                    <div class="h-1.5 rounded-full transition-all duration-500"
+                         :class="gpu.memory_used_mb / gpu.memory_total_mb > 0.9 ? 'bg-red-500' : 'bg-blue-500'"
+                         :style="`width: ${(gpu.memory_used_mb / gpu.memory_total_mb * 100).toFixed(0)}%`"></div>
+                  </div>
+                  <span class="text-xs text-gray-500 w-20 text-right"
+                        x-text="`${(gpu.memory_used_mb/1024).toFixed(1)}/${(gpu.memory_total_mb/1024).toFixed(1)} GB`"></span>
+                </div>
+                <template x-if="gpu.temperature != null">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-500 w-12">Temp</span>
+                    <span class="text-xs" :class="gpu.temperature > 80 ? 'text-red-400' : 'text-gray-400'"
+                          x-text="`${gpu.temperature}°C`"></span>
+                    <template x-if="gpu.power_draw_w != null">
+                      <span class="text-xs text-gray-500 ml-auto" x-text="`${gpu.power_draw_w}W`"></span>
+                    </template>
+                  </div>
+                </template>
+              </div>
+              <!-- Assigned instance -->
+              <template x-if="getGpuAssignment(gpu.index)">
+                <div class="mt-2 pt-2 border-t border-gray-800">
+                  <span class="text-xs text-green-400 font-medium" x-text="getGpuAssignment(gpu.index)"></span>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+      <template x-if="status.gpu && !status.gpu.available">
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-sm text-gray-400">
+          <span class="text-yellow-500">⚠</span>
+          <span x-text="status.gpu.error || 'No GPUs detected'"></span>
+          <span class="text-gray-600"> — instances will run on CPU only (set n_gpu_layers=0)</span>
+        </div>
+      </template>
+    </section>
+
+    <!-- Active Instances -->
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+          Instances
+          <span class="text-gray-600 font-normal" x-text="`(${instances.length})`"></span>
+        </h2>
+        <div class="flex gap-2" x-show="instances.length > 0">
+          <button @click="startAll()" class="text-xs bg-green-600/20 text-green-400 border border-green-600/30 px-3 py-1 rounded hover:bg-green-600/30 transition">
+            Start All
+          </button>
+          <button @click="stopAll()" class="text-xs bg-red-600/20 text-red-400 border border-red-600/30 px-3 py-1 rounded hover:bg-red-600/30 transition">
+            Stop All
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <template x-if="instances.length === 0">
+        <div class="bg-gray-900 border border-gray-800 border-dashed rounded-lg p-8 text-center">
+          <div class="text-2xl mb-2">🖥️</div>
+          <div class="text-gray-400 text-sm mb-3">No instances configured</div>
+          <button @click="showCreate = true" class="text-sm bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md transition">
+            Create your first instance
+          </button>
+        </div>
+      </template>
+
+      <!-- Instance cards -->
+      <div class="space-y-3">
+        <template x-for="inst in instances" :key="inst.id">
+          <div class="bg-gray-900 border rounded-lg p-4 fade-in"
+               :class="inst.status === 'running' ? 'border-green-800/50' : inst.status === 'error' ? 'border-red-800/50' : 'border-gray-800'">
+            <div class="flex items-start justify-between gap-4">
+              <!-- Left: info -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="status-dot" :class="`status-${inst.status}`"></span>
+                  <span class="font-medium text-sm" x-text="inst.name"></span>
+                  <span class="text-xs px-1.5 py-0.5 rounded font-mono"
+                        :class="inst.status === 'running' ? 'bg-green-900/50 text-green-400' : inst.status === 'error' ? 'bg-red-900/50 text-red-400' : 'bg-gray-800 text-gray-500'"
+                        x-text="inst.status"></span>
+                </div>
+                <div class="text-xs text-gray-500 mb-2 truncate" x-text="inst.model_path"></div>
+                <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                  <span x-show="inst.gpus.length > 0">
+                    <span class="text-gray-600">GPUs:</span>
+                    <span class="text-gray-400 font-mono" x-text="inst.gpus.join(', ')"></span>
+                  </span>
+                  <span>
+                    <span class="text-gray-600">Port:</span>
+                    <a :href="`http://${location.hostname}:${inst.port}`" target="_blank"
+                       class="text-blue-400 hover:text-blue-300 font-mono" x-text="inst.port"></a>
+                  </span>
+                  <span>
+                    <span class="text-gray-600">Ctx:</span>
+                    <span class="text-gray-400 font-mono" x-text="(inst.context_size/1024).toFixed(0)+'k'"></span>
+                  </span>
+                  <span>
+                    <span class="text-gray-600">Layers:</span>
+                    <span class="text-gray-400 font-mono" x-text="inst.n_gpu_layers"></span>
+                  </span>
+                  <span x-show="inst.pid">
+                    <span class="text-gray-600">PID:</span>
+                    <span class="text-gray-400 font-mono" x-text="inst.pid"></span>
+                  </span>
+                </div>
+                <!-- Error message -->
+                <template x-if="inst.error_message">
+                  <div class="mt-2 text-xs text-red-400 bg-red-900/20 rounded px-2 py-1" x-text="inst.error_message"></div>
+                </template>
+              </div>
+              <!-- Right: actions -->
+              <div class="flex items-center gap-2 shrink-0">
+                <template x-if="inst.status === 'stopped' || inst.status === 'error'">
+                  <button @click="startInstance(inst.id)" class="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded transition">
+                    ▶ Start
+                  </button>
+                </template>
+                <template x-if="inst.status === 'running' || inst.status === 'starting'">
+                  <button @click="stopInstance(inst.id)" class="text-xs bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded transition">
+                    ■ Stop
+                  </button>
+                </template>
+                <template x-if="inst.status === 'stopping'">
+                  <span class="text-xs text-yellow-400 px-3 py-1.5">Stopping…</span>
+                </template>
+                <button @click="selectedLog = inst.id; showLogs = true"
+                        class="text-xs text-gray-400 hover:text-white px-2 py-1.5 rounded hover:bg-gray-800 transition"
+                        title="View Logs">
+                  📋
+                </button>
+                <button @click="editInstance(inst)"
+                        class="text-xs text-gray-400 hover:text-white px-2 py-1.5 rounded hover:bg-gray-800 transition"
+                        title="Edit"
+                        :disabled="inst.status === 'running'">
+                  ✏️
+                </button>
+                <button @click="deleteInstance(inst.id, inst.name)"
+                        class="text-xs text-gray-400 hover:text-red-400 px-2 py-1.5 rounded hover:bg-gray-800 transition"
+                        title="Delete">
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <!-- Models -->
+    <section>
+      <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
+        Available Models
+        <span class="text-gray-600 font-normal" x-text="`(${models.length})`"></span>
+      </h2>
+      <template x-if="models.length === 0">
+        <div class="bg-gray-900 border border-gray-800 border-dashed rounded-lg p-6 text-center text-sm text-gray-500">
+          No .gguf models found in <code class="text-gray-400" x-text="status.config?.models_dir || '/models'"></code>
+        </div>
+      </template>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+        <template x-for="model in models" :key="model.path">
+          <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 flex items-center justify-between cursor-pointer hover:border-gray-700 transition"
+               @click="prefillModel(model.path)">
+            <div class="min-w-0 flex-1">
+              <div class="text-sm text-gray-300 truncate" x-text="model.name"></div>
+              <div class="text-xs text-gray-500 font-mono" x-text="model.size_human"></div>
+            </div>
+            <span class="text-xs text-blue-400 ml-2 shrink-0">use →</span>
+          </div>
+        </template>
+      </div>
+    </section>
+  </div>
+
+  <!-- ═══════════════════ CREATE / EDIT MODAL ═══════════════════ -->
+  <template x-if="showCreate || editingId">
+    <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" @click.self="closeModal()">
+      <div class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto" @click.stop>
+        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+          <h3 class="font-semibold text-sm" x-text="editingId ? 'Edit Instance' : 'New Instance'"></h3>
+          <button @click="closeModal()" class="text-gray-500 hover:text-white text-lg">&times;</button>
+        </div>
+        <div class="px-5 py-4 space-y-4">
+          <!-- Name -->
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Name</label>
+            <input x-model="form.name" type="text" placeholder="e.g. Qwen 27B, Gemma 26B"
+                   class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+          </div>
+          <!-- Model path -->
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Model path (.gguf)</label>
+            <div x-show="models.length > 0" class="mb-1.5">
+              <select x-model="form.model_path" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                <option value="">— Select from available models —</option>
+                <template x-for="m in models" :key="m.path">
+                  <option :value="m.path" x-text="`${m.name} (${m.size_human})`"></option>
+                </template>
+              </select>
+            </div>
+            <input x-model="form.model_path" type="text" placeholder="/path/to/model.gguf"
+                   class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+          </div>
+          <!-- GPUs -->
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">GPUs</label>
+            <template x-if="status.gpu && status.gpu.gpus.length > 0">
+              <div class="flex flex-wrap gap-2">
+                <template x-for="gpu in status.gpu.gpus" :key="gpu.index">
+                  <label class="flex items-center gap-1.5 bg-gray-800 border rounded px-3 py-1.5 text-sm cursor-pointer transition"
+                         :class="form.gpus.includes(gpu.index) ? 'border-blue-500 bg-blue-900/30 text-blue-300' : 'border-gray-700 text-gray-400 hover:border-gray-600'">
+                    <input type="checkbox" :value="gpu.index" class="hidden"
+                           @change="toggleGpu(gpu.index)">
+                    <span class="font-mono text-xs" x-text="`GPU ${gpu.index}`"></span>
+                    <span class="text-xs text-gray-500 truncate max-w-[120px]" x-text="gpu.name"></span>
+                  </label>
+                </template>
+              </div>
+            </template>
+            <template x-if="!status.gpu || status.gpu.gpus.length === 0">
+              <div class="text-xs text-gray-500 bg-gray-800 rounded px-3 py-2">
+                No GPUs detected — instance will run on CPU. You can still manually enter GPU indices if you know them.
+              </div>
+            </template>
+            <input x-model="form.gpusRaw" type="text" placeholder="GPU indices, e.g. 0,1"
+                   class="w-full mt-1.5 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+          </div>
+          <!-- Port -->
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Port</label>
+            <input x-model.number="form.port" type="number" placeholder="Auto-assign (leave empty)"
+                   class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+          </div>
+          <!-- Advanced options -->
+          <details class="bg-gray-800/50 rounded-lg">
+            <summary class="text-xs text-gray-400 px-3 py-2 cursor-pointer hover:text-gray-300">Advanced options</summary>
+            <div class="px-3 pb-3 pt-1 space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Context Size</label>
+                  <input x-model.number="form.context_size" type="number"
+                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">GPU Layers</label>
+                  <input x-model.number="form.n_gpu_layers" type="number"
+                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Parallel Requests</label>
+                  <input x-model.number="form.parallel" type="number"
+                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Host</label>
+                  <input x-model="form.host" type="text"
+                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="checkbox" x-model="form.flash_attention" id="flash" class="rounded">
+                <label for="flash" class="text-xs text-gray-400">Flash Attention</label>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Extra args (one per line)</label>
+                <textarea x-model="form.additional_args_raw" rows="2"
+                          placeholder="--no-mmap&#10;--mlock"
+                          class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none"></textarea>
+              </div>
+            </div>
+          </details>
+        </div>
+        <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-800">
+          <button @click="closeModal()" class="text-sm text-gray-400 hover:text-white px-4 py-2 rounded transition">Cancel</button>
+          <button @click="saveInstance()" :disabled="!form.name || !form.model_path"
+                  class="text-sm bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white px-5 py-2 rounded-md font-medium transition">
+            <span x-text="editingId ? 'Update' : 'Create'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ═══════════════════ LOG MODAL ═══════════════════ -->
+  <template x-if="showLogs">
+    <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" @click.self="showLogs = false">
+      <div class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-3xl shadow-2xl flex flex-col" style="max-height: 80vh;" @click.stop>
+        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-800 shrink-0">
+          <h3 class="font-semibold text-sm">
+            Logs — <span x-text="instances.find(i => i.id === selectedLog)?.name || selectedLog"></span>
+          </h3>
+          <div class="flex items-center gap-3">
+            <button @click="fetchLogs()" class="text-xs text-gray-400 hover:text-white">↻ Refresh</button>
+            <button @click="showLogs = false" class="text-gray-500 hover:text-white text-lg">&times;</button>
+          </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4">
+          <pre class="log-box text-gray-300 whitespace-pre-wrap" x-text="logContent || 'No logs yet.'"></pre>
+        </div>
+      </div>
+    </div>
+  </template>
+
+</div>
+
+<script>
+function llamaDeck() {
+  return {
+    // State
+    status: {},
+    instances: [],
+    models: [],
+    refreshing: false,
+
+    // Modal state
+    showCreate: false,
+    showLogs: false,
+    editingId: null,
+    selectedLog: null,
+    logContent: '',
+
+    // Form
+    form: {
+      name: '',
+      model_path: '',
+      gpus: [],
+      gpusRaw: '',
+      port: null,
+      host: '0.0.0.0',
+      context_size: 4096,
+      n_gpu_layers: 999,
+      parallel: 4,
+      flash_attention: true,
+      additional_args_raw: '',
+    },
+
+    // ── Init ──────────────────────────────────────────────────────
+    async init() {
+      await this.fetchStatus();
+      // Poll every 5 seconds
+      setInterval(() => this.fetchStatus(), 5000);
+      // Poll logs when visible
+      setInterval(() => { if (this.showLogs && this.selectedLog) this.fetchLogs(); }, 2000);
+    },
+
+    // ── API calls ─────────────────────────────────────────────────
+    async fetchStatus() {
+      this.refreshing = true;
+      try {
+        const [gpuRes, instRes, modelRes] = await Promise.all([
+          fetch('/api/gpus'),
+          fetch('/api/instances'),
+          fetch('/api/models'),
+        ]);
+        this.status.gpu = await gpuRes.json();
+        this.instances = await instRes.json();
+        this.models = await modelRes.json();
+        // Also fetch config
+        const statusRes = await fetch('/api/status');
+        const fullStatus = await statusRes.json();
+        this.status.config = fullStatus.config;
+      } catch (e) {
+        console.error('Failed to fetch status:', e);
+      }
+      this.refreshing = false;
+    },
+
+    async fetchLogs() {
+      if (!this.selectedLog) return;
+      try {
+        const res = await fetch(`/api/instances/${this.selectedLog}/logs?lines=500`);
+        const data = await res.json();
+        this.logContent = (data.logs || []).join('\n');
+        // Auto-scroll
+        this.$nextTick(() => {
+          const el = document.querySelector('.log-box');
+          if (el) el.scrollTop = el.scrollHeight;
+        });
+      } catch (e) {
+        this.logContent = `Error fetching logs: ${e.message}`;
+      }
+    },
+
+    // ── Instance actions ──────────────────────────────────────────
+    async startInstance(id) {
+      await fetch(`/api/instances/${id}/start`, { method: 'POST' });
+      await this.fetchStatus();
+    },
+
+    async stopInstance(id) {
+      await fetch(`/api/instances/${id}/stop`, { method: 'POST' });
+      await this.fetchStatus();
+    },
+
+    async startAll() {
+      await fetch('/api/instances/start-all', { method: 'POST' });
+      await this.fetchStatus();
+    },
+
+    async stopAll() {
+      await fetch('/api/instances/stop-all', { method: 'POST' });
+      await this.fetchStatus();
+    },
+
+    async deleteInstance(id, name) {
+      if (!confirm(`Delete instance "${name}"?`)) return;
+      await fetch(`/api/instances/${id}`, { method: 'DELETE' });
+      await this.fetchStatus();
+    },
+
+    // ── Create / Edit ─────────────────────────────────────────────
+    prefillModel(path) {
+      this.form.model_path = path;
+      this.showCreate = true;
+    },
+
+    editInstance(inst) {
+      if (inst.status === 'running') return;
+      this.editingId = inst.id;
+      this.form = {
+        name: inst.name,
+        model_path: inst.model_path,
+        gpus: [...inst.gpus],
+        gpusRaw: inst.gpus.join(','),
+        port: inst.port,
+        host: inst.host,
+        context_size: inst.context_size,
+        n_gpu_layers: inst.n_gpu_layers,
+        parallel: inst.parallel,
+        flash_attention: inst.flash_attention,
+        additional_args_raw: (inst.additional_args || []).join('\n'),
+      };
+    },
+
+    toggleGpu(index) {
+      const i = this.form.gpus.indexOf(index);
+      if (i === -1) {
+        this.form.gpus.push(index);
+      } else {
+        this.form.gpus.splice(i, 1);
+      }
+      this.form.gpusRaw = this.form.gpus.join(',');
+    },
+
+    async saveInstance() {
+      // Merge GPU sources
+      let gpus = [...this.form.gpus];
+      if (this.form.gpusRaw) {
+        const raw = this.form.gpusRaw.split(/[,\s]+/).map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+        gpus = [...new Set([...gpus, ...raw])];
+      }
+
+      const body = {
+        name: this.form.name,
+        model_path: this.form.model_path,
+        gpus: gpus,
+        port: this.form.port || null,
+        host: this.form.host,
+        context_size: this.form.context_size,
+        n_gpu_layers: this.form.n_gpu_layers,
+        parallel: this.form.parallel,
+        flash_attention: this.form.flash_attention,
+        additional_args: this.form.additional_args_raw
+          ? this.form.additional_args_raw.split('\n').map(s => s.trim()).filter(Boolean)
+          : [],
+      };
+
+      try {
+        if (this.editingId) {
+          await fetch(`/api/instances/${this.editingId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+        } else {
+          const res = await fetch('/api/instances', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            alert(`Error: ${err.detail || 'Failed to create instance'}`);
+            return;
+          }
+        }
+        this.closeModal();
+        await this.fetchStatus();
+      } catch (e) {
+        alert(`Error: ${e.message}`);
+      }
+    },
+
+    closeModal() {
+      this.showCreate = false;
+      this.editingId = null;
+      this.form = {
+        name: '', model_path: '', gpus: [], gpusRaw: '', port: null,
+        host: '0.0.0.0', context_size: 4096, n_gpu_layers: 999,
+        parallel: 4, flash_attention: true, additional_args_raw: '',
+      };
+    },
+
+    // ── Helpers ───────────────────────────────────────────────────
+    getGpuAssignment(gpuIndex) {
+      const inst = this.instances.find(i => i.gpus.includes(gpuIndex) && i.status === 'running');
+      return inst ? inst.name : null;
+    },
+  };
+}
+</script>
+
+</body>
+</html>
