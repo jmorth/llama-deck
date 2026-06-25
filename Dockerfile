@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 # Install system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl wget \
+    curl wget libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install llama.cpp server binary
