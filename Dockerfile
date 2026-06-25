@@ -12,7 +12,7 @@ RUN ln -sf /usr/bin/python3 /usr/bin/python
 # Install Python deps
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --break-system-packages -r requirements.txt
 
 # Copy app
 COPY app/ /app/app/
