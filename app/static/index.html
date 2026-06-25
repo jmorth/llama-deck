@@ -328,9 +328,9 @@
                 <label for="flash" class="text-xs text-gray-400">Flash Attention</label>
               </div>
               <div>
-                <label class="block text-xs text-gray-400 mb-1">Extra args (one per line)</label>
+                <label class="block text-xs text-gray-400 mb-1">Extra args (space or newline separated)</label>
                 <textarea x-model="form.additional_args_raw" rows="2"
-                          placeholder="--no-mmap&#10;--mlock"
+                          placeholder="--split-mode tensor&#10;--no-mmap"
                           class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none"></textarea>
               </div>
             </div>
@@ -494,7 +494,7 @@ function llamaDeck() {
         n_gpu_layers: inst.n_gpu_layers,
         parallel: inst.parallel,
         flash_attention: inst.flash_attention,
-        additional_args_raw: (inst.additional_args || []).join('\n'),
+        additional_args_raw: (inst.additional_args || []).join(' '),
       };
     },
 
@@ -527,7 +527,7 @@ function llamaDeck() {
         parallel: this.form.parallel,
         flash_attention: this.form.flash_attention,
         additional_args: this.form.additional_args_raw
-          ? this.form.additional_args_raw.split('\n').map(s => s.trim()).filter(Boolean)
+          ? this.form.additional_args_raw.split('\n').flatMap(s => s.trim().split(/\s+/).filter(Boolean))
           : [],
       };
 
