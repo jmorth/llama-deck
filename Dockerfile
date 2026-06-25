@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.6.3-runtime-ubuntu24.04
+FROM nvidia/cuda:13.0.1-runtime-ubuntu24.04
 
 # Install Python 3.12 + system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
