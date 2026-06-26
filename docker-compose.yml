@@ -12,8 +12,7 @@ services:
     build: .
     container_name: llama-deck
     restart: unless-stopped
-    ports:
-      - "${MANAGER_PORT:-8080}:8080"
+    network_mode: host
     environment:
       - MODELS_DIR=/models
       - LLAMA_SERVER_BINARY=${LLAMA_SERVER_BINARY:-llama-server}
@@ -38,10 +37,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    # Network mode: host is optional but useful if you need low-latency access
-    # to the llama-server endpoints from other containers or the host.
-    # Uncomment below to use host networking (ports will be directly on host):
-    # network_mode: host
 
 volumes:
   llama-deck-data:
