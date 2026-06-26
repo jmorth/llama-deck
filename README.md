@@ -44,6 +44,9 @@ docker compose up -d
 # 3. Open http://localhost:8080
 ```
 
+The Docker image is based on `nvidia/cuda` and includes the CUDA runtime,
+so no host CUDA installation is needed inside the container.
+
 ### Using a pre-built llama-server binary
 
 If you already have `llama-server` installed on the host:
@@ -55,11 +58,6 @@ If you already have `llama-server` installed on the host:
 # Set the path in .env:
 LLAMA_SERVER_PATH=/usr/local/bin/llama-server
 ```
-
-### Building llama-server from source in Docker
-
-In `Dockerfile`, uncomment "Option B" to build llama.cpp with CUDA support
-during the Docker image build. This produces a self-contained image.
 
 ## API Reference
 
@@ -120,7 +118,8 @@ curl -X POST http://localhost:8080/api/instances/<id>/start
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MODELS_DIR` | `/models` | Directory containing `.gguf` model files |
-| `LLAMA_SERVER_BINARY` | `llama-server` | Path to llama-server executable |
+| `LLAMA_SERVER_BINARY` | `llama-server` | Path to llama-server executable (inside container) |
+| `LLAMA_SERVER_PATH` | `/usr/local/bin/llama-server` | Host path to llama-server binary (for Docker volume mount) |
 | `PORT` | `8080` | Web UI port |
 | `HOST` | `0.0.0.0` | Bind address |
 | `PORT_RANGE_START` | `8081` | Start of port range for instances |
