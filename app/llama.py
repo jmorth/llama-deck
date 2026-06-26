@@ -280,6 +280,9 @@ class InstanceManager:
 
         models = []
         for f in sorted(models_dir.rglob("*.gguf")):
+            # Skip multimodal projector files — not usable as standalone models
+            if "mmproj" in f.name.lower():
+                continue
             size = f.stat().st_size
             models.append(
                 ModelFile(
