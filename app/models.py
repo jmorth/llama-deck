@@ -54,12 +54,8 @@ class LlamaInstance(BaseModel):
     created_at: str = ""
     started_at: Optional[str] = None
     error_message: Optional[str] = None
-
-    @model_validator(mode="after")
-    def _check_gpu_exclusivity(self) -> "LlamaInstance":
-        if self.gpus and self.gpu_count is not None:
-            raise ValueError("gpus (pinned) and gpu_count (auto-assign) are mutually exclusive")
-        return self
+    # NOTE: No validator here — after auto-assign, both gpus and gpu_count
+    # will be set simultaneously. Exclusivity is enforced at creation/update time.
 
 
 class InstanceCreate(BaseModel):

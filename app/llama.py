@@ -329,6 +329,9 @@ class InstanceManager:
         inst.status = InstanceStatus.STOPPED
         inst.pid = None
         inst.started_at = None
+        # Clear auto-assigned GPUs so next start picks fresh ones
+        if inst.gpu_count:
+            inst.gpus = []
         with self._lock:
             self._save_state()
         return inst
