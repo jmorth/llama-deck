@@ -390,6 +390,9 @@ class InstanceManager:
             # Skip multimodal projector files — not usable as standalone models
             if "mmproj" in f.name.lower():
                 continue
+            # Skip MTP draft models — not usable as standalone models
+            if f.name.lower().startswith("mtp-"):
+                continue
             size = f.stat().st_size
 
             # Derive tags from relative folder path
@@ -444,6 +447,17 @@ class InstanceManager:
             cmd.append("--no-metrics")
         if inst.spec_type:
             cmd.extend(["--spec-type", inst.spec_type])
+            # Auto-detect MTP draft model for draft-mtp spec type
+            if inst.spec_type == "draft-mtp":
+                model_dir = Path(inst.model_path).parent
+                mtp_files = sorted(model_dir.glob("mtp-*.gguf"))
+                if mtp_files:
+                    cmd.extend(["--model-draft", str(mtp_files[0])])
+        # Auto-detect multimodal projector
+        model_dir = Path(inst.model_path).parent
+        mmproj_files = sorted(model_dir.glob("mmproj-*.gguf"))
+        if mmproj_files:
+            cmd.extend(["--mmproj", str(mmproj_files[0])])
         if inst.spec_draft_n_max is not None:
             cmd.extend(["--spec-draft-n-max", str(inst.spec_draft_n_max)])
         cmd.extend(inst.additional_args)
