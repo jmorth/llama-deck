@@ -267,185 +267,223 @@
           <button @click="closeModal()" class="text-gray-500 hover:text-white text-lg">&times;</button>
         </div>
         <div class="px-5 py-4 space-y-4">
-          <!-- Name -->
-          <div>
-            <label class="block text-xs text-gray-400 mb-1">Name</label>
-            <input x-model="form.name" type="text" placeholder="e.g. Qwen 27B, Gemma 26B"
-                   class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+          <!-- Tab buttons -->
+          <div class="flex gap-1 bg-gray-800 rounded-lg p-0.5">
+            <button type="button" @click="activeTab = 'general'"
+                    class="flex-1 text-xs py-1.5 rounded-md transition font-medium"
+                    :class="activeTab === 'general' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-300'">
+              General
+            </button>
+            <button type="button" @click="activeTab = 'advanced'"
+                    class="flex-1 text-xs py-1.5 rounded-md transition font-medium"
+                    :class="activeTab === 'advanced' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-300'">
+              Advanced
+            </button>
           </div>
-          <!-- Alias -->
-          <div>
-            <label class="block text-xs text-gray-400 mb-1">Alias <span class="text-gray-600">(optional, passed as --alias)</span></label>
-            <input x-model="form.alias" type="text" placeholder="e.g. qwen-27b"
-                   class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
-          </div>
-          <!-- Model path -->
-          <div>
-            <label class="block text-xs text-gray-400 mb-1">Model path (.gguf)</label>
-            <div x-show="models.length > 0" class="mb-1.5">
-              <select x-model="form.model_path" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
-                <option value="">— Select from available models —</option>
-                <template x-for="m in models" :key="m.path">
-                  <option :value="m.path" x-text="`${m.name} (${m.size_human})`"></option>
-                </template>
-              </select>
+
+          <!-- ═══ General Tab ═══ -->
+          <div x-show="activeTab === 'general'" class="space-y-4">
+            <!-- Name -->
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Name</label>
+              <input x-model="form.name" type="text" placeholder="e.g. Qwen 27B, Gemma 26B"
+                     class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
             </div>
-            <input x-model="form.model_path" type="text" placeholder="/path/to/model.gguf"
-                   class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
-          </div>
-          <!-- GPUs -->
-          <div>
-            <label class="block text-xs text-gray-400 mb-1">GPU Assignment</label>
-            <!-- Mode toggle -->
-            <div class="flex gap-1 mb-2 bg-gray-800 rounded-lg p-0.5">
-              <button type="button" @click="form.gpu_mode = 'pin'"
-                      class="flex-1 text-xs py-1.5 rounded-md transition font-medium"
-                      :class="form.gpu_mode === 'pin' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-300'">
-                📌 Pin to GPUs
-              </button>
-              <button type="button" @click="form.gpu_mode = 'auto'"
-                      class="flex-1 text-xs py-1.5 rounded-md transition font-medium"
-                      :class="form.gpu_mode === 'auto' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-300'">
-                ⚡ Auto-assign
-              </button>
+            <!-- Alias -->
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Alias <span class="text-gray-600">(optional, passed as --alias)</span></label>
+              <input x-model="form.alias" type="text" placeholder="e.g. qwen-27b"
+                     class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
             </div>
-            <!-- Pin mode: checkboxes + raw input -->
-            <template x-if="form.gpu_mode === 'pin'">
+            <!-- Model path -->
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Model path (.gguf)</label>
+              <div x-show="models.length > 0" class="mb-1.5">
+                <select x-model="form.model_path" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                  <option value="">— Select from available models —</option>
+                  <template x-for="m in models" :key="m.path">
+                    <option :value="m.path" x-text="`${m.name} (${m.size_human})`"></option>
+                  </template>
+                </select>
+              </div>
+              <input x-model="form.model_path" type="text" placeholder="/path/to/model.gguf"
+                     class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+            </div>
+            <!-- GPUs -->
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">GPU Assignment</label>
+              <!-- Mode toggle -->
+              <div class="flex gap-1 mb-2 bg-gray-800 rounded-lg p-0.5">
+                <button type="button" @click="form.gpu_mode = 'pin'"
+                        class="flex-1 text-xs py-1.5 rounded-md transition font-medium"
+                        :class="form.gpu_mode === 'pin' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-300'">
+                  📌 Pin to GPUs
+                </button>
+                <button type="button" @click="form.gpu_mode = 'auto'"
+                        class="flex-1 text-xs py-1.5 rounded-md transition font-medium"
+                        :class="form.gpu_mode === 'auto' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-300'">
+                  ⚡ Auto-assign
+                </button>
+              </div>
+              <!-- Pin mode: checkboxes + raw input -->
+              <template x-if="form.gpu_mode === 'pin'">
+                <div>
+                  <template x-if="status.gpu && status.gpu.gpus.length > 0">
+                    <div class="flex flex-wrap gap-2">
+                      <template x-for="gpu in status.gpu.gpus" :key="gpu.index">
+                        <label class="flex items-center gap-1.5 bg-gray-800 border rounded px-3 py-1.5 text-sm cursor-pointer transition"
+                               :class="form.gpus.includes(gpu.index) ? 'border-blue-500 bg-blue-900/30 text-blue-300' : 'border-gray-700 text-gray-400 hover:border-gray-600'">
+                          <input type="checkbox" :value="gpu.index" class="hidden"
+                                 @change="toggleGpu(gpu.index)">
+                          <span class="font-mono text-xs" x-text="`GPU ${gpu.index}`"></span>
+                          <span class="text-xs text-gray-500 truncate max-w-[120px]" x-text="gpu.name"></span>
+                        </label>
+                      </template>
+                    </div>
+                  </template>
+                  <template x-if="!status.gpu || status.gpu.gpus.length === 0">
+                    <div class="text-xs text-gray-500 bg-gray-800 rounded px-3 py-2">
+                      No GPUs detected — instance will run on CPU. You can still manually enter GPU indices if you know them.
+                    </div>
+                  </template>
+                  <input x-model="form.gpusRaw" type="text" placeholder="GPU indices, e.g. 0,1"
+                         class="w-full mt-1.5 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                </div>
+              </template>
+              <!-- Auto-assign mode: count input -->
+              <template x-if="form.gpu_mode === 'auto'">
+                <div class="flex items-center gap-3">
+                  <label class="text-xs text-gray-400 shrink-0">Number of GPUs:</label>
+                  <input x-model.number="form.gpu_count" type="number" min="1"
+                         class="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                  <span class="text-xs text-gray-500"
+                        x-text="`${gpuAvailability.total_free} of ${gpuAvailability.total_gpus} free`"></span>
+                </div>
+              </template>
+            </div>
+            <!-- Port -->
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Port</label>
+              <input x-model.number="form.port" type="number" placeholder="Auto-assign (leave empty)"
+                     class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+            </div>
+          </div>
+
+          <!-- ═══ Advanced Tab ═══ -->
+          <div x-show="activeTab === 'advanced'" class="space-y-4">
+            <div class="grid grid-cols-2 gap-3">
               <div>
-                <template x-if="status.gpu && status.gpu.gpus.length > 0">
-                  <div class="flex flex-wrap gap-2">
-                    <template x-for="gpu in status.gpu.gpus" :key="gpu.index">
-                      <label class="flex items-center gap-1.5 bg-gray-800 border rounded px-3 py-1.5 text-sm cursor-pointer transition"
-                             :class="form.gpus.includes(gpu.index) ? 'border-blue-500 bg-blue-900/30 text-blue-300' : 'border-gray-700 text-gray-400 hover:border-gray-600'">
-                        <input type="checkbox" :value="gpu.index" class="hidden"
-                               @change="toggleGpu(gpu.index)">
-                        <span class="font-mono text-xs" x-text="`GPU ${gpu.index}`"></span>
-                        <span class="text-xs text-gray-500 truncate max-w-[120px]" x-text="gpu.name"></span>
-                      </label>
-                    </template>
-                  </div>
-                </template>
-                <template x-if="!status.gpu || status.gpu.gpus.length === 0">
-                  <div class="text-xs text-gray-500 bg-gray-800 rounded px-3 py-2">
-                    No GPUs detected — instance will run on CPU. You can still manually enter GPU indices if you know them.
-                  </div>
-                </template>
-                <input x-model="form.gpusRaw" type="text" placeholder="GPU indices, e.g. 0,1"
-                       class="w-full mt-1.5 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
-              </div>
-            </template>
-            <!-- Auto-assign mode: count input -->
-            <template x-if="form.gpu_mode === 'auto'">
-              <div class="flex items-center gap-3">
-                <label class="text-xs text-gray-400 shrink-0">Number of GPUs:</label>
-                <input x-model.number="form.gpu_count" type="number" min="1"
-                       class="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
-                <span class="text-xs text-gray-500"
-                      x-text="`${gpuAvailability.total_free} of ${gpuAvailability.total_gpus} free`"></span>
-              </div>
-            </template>
-          </div>
-          <!-- Port -->
-          <div>
-            <label class="block text-xs text-gray-400 mb-1">Port</label>
-            <input x-model.number="form.port" type="number" placeholder="Auto-assign (leave empty)"
-                   class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
-          </div>
-          <!-- Advanced options -->
-          <details class="bg-gray-800/50 rounded-lg">
-            <summary class="text-xs text-gray-400 px-3 py-2 cursor-pointer hover:text-gray-300">Advanced options</summary>
-            <div class="px-3 pb-3 pt-1 space-y-3">
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Context Size</label>
-                  <input x-model.number="form.context_size" type="number"
-                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">GPU Layers</label>
-                  <input x-model.number="form.n_gpu_layers" type="number"
-                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
-                </div>
-              </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Parallel Requests</label>
-                  <input x-model.number="form.parallel" type="number"
-                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Host</label>
-                  <input x-model="form.host" type="text"
-                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <input type="checkbox" x-model="form.flash_attention" id="flash" class="rounded">
-                <label for="flash" class="text-xs text-gray-400">Flash Attention</label>
-              </div>
-              <div class="flex items-center gap-2">
-                <input type="checkbox" x-model="form.no_metrics" id="no_metrics" class="rounded">
-                <label for="no_metrics" class="text-xs text-gray-400">Disable metrics endpoint (--no-metrics)</label>
-              </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Cache Type K</label>
-                  <select x-model="form.cache_type_k"
-                          class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
-                    <option value="">— default —</option>
-                    <option value="f32">f32</option>
-                    <option value="f16">f16</option>
-                    <option value="bf16">bf16</option>
-                    <option value="q8_0">q8_0</option>
-                    <option value="q4_0">q4_0</option>
-                    <option value="q4_1">q4_1</option>
-                    <option value="iq4_nl">iq4_nl</option>
-                    <option value="q5_0">q5_0</option>
-                    <option value="q5_1">q5_1</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Cache Type V</label>
-                  <select x-model="form.cache_type_v"
-                          class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
-                    <option value="">— default —</option>
-                    <option value="f32">f32</option>
-                    <option value="f16">f16</option>
-                    <option value="bf16">bf16</option>
-                    <option value="q8_0">q8_0</option>
-                    <option value="q4_0">q4_0</option>
-                    <option value="q4_1">q4_1</option>
-                    <option value="iq4_nl">iq4_nl</option>
-                    <option value="q5_0">q5_0</option>
-                    <option value="q5_1">q5_1</option>
-                  </select>
-                </div>
-              </div>
-              <div class="grid grid-cols-3 gap-3">
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Temperature</label>
-                  <input x-model.number="form.temp" type="number" step="0.1" placeholder="e.g. 0.8"
-                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Top P</label>
-                  <input x-model.number="form.top_p" type="number" step="0.05" placeholder="e.g. 0.95"
-                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-400 mb-1">Top K</label>
-                  <input x-model.number="form.top_k" type="number" placeholder="e.g. 40"
-                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
-                </div>
+                <label class="block text-xs text-gray-400 mb-1">Context Size</label>
+                <input x-model.number="form.context_size" type="number"
+                       class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
               </div>
               <div>
-                <label class="block text-xs text-gray-400 mb-1">Extra args (space or newline separated)</label>
-                <textarea x-model="form.additional_args_raw" rows="2"
-                          placeholder="--split-mode tensor&#10;--no-mmap"
-                          class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none"></textarea>
+                <label class="block text-xs text-gray-400 mb-1">GPU Layers</label>
+                <input x-model.number="form.n_gpu_layers" type="number"
+                       class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
               </div>
             </div>
-          </details>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Parallel Requests</label>
+                <input x-model.number="form.parallel" type="number"
+                       class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Host</label>
+                <input x-model="form.host" type="text"
+                       class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="checkbox" x-model="form.flash_attention" id="flash" class="rounded">
+              <label for="flash" class="text-xs text-gray-400">Flash Attention</label>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="checkbox" x-model="form.no_metrics" id="no_metrics" class="rounded">
+              <label for="no_metrics" class="text-xs text-gray-400">Disable metrics endpoint (--no-metrics)</label>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Cache Type K</label>
+                <select x-model="form.cache_type_k"
+                        class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                  <option value="">— default —</option>
+                  <option value="f32">f32</option>
+                  <option value="f16">f16</option>
+                  <option value="bf16">bf16</option>
+                  <option value="q8_0">q8_0</option>
+                  <option value="q4_0">q4_0</option>
+                  <option value="q4_1">q4_1</option>
+                  <option value="iq4_nl">iq4_nl</option>
+                  <option value="q5_0">q5_0</option>
+                  <option value="q5_1">q5_1</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Cache Type V</label>
+                <select x-model="form.cache_type_v"
+                        class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                  <option value="">— default —</option>
+                  <option value="f32">f32</option>
+                  <option value="f16">f16</option>
+                  <option value="bf16">bf16</option>
+                  <option value="q8_0">q8_0</option>
+                  <option value="q4_0">q4_0</option>
+                  <option value="q4_1">q4_1</option>
+                  <option value="iq4_nl">iq4_nl</option>
+                  <option value="q5_0">q5_0</option>
+                  <option value="q5_1">q5_1</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Temperature</label>
+                <input x-model.number="form.temp" type="number" step="0.1" placeholder="e.g. 0.8"
+                       class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Top P</label>
+                <input x-model.number="form.top_p" type="number" step="0.05" placeholder="e.g. 0.95"
+                       class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Top K</label>
+                <input x-model.number="form.top_k" type="number" placeholder="e.g. 40"
+                       class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Spec Type (--spec-type)</label>
+                <select x-model="form.spec_type"
+                        class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                  <option value="">— none —</option>
+                  <option value="draft-simple">draft-simple</option>
+                  <option value="draft-eagle3">draft-eagle3</option>
+                  <option value="draft-mtp">draft-mtp</option>
+                  <option value="draft-dflash">draft-dflash</option>
+                  <option value="ngram-simple">ngram-simple</option>
+                  <option value="ngram-map-k">ngram-map-k</option>
+                  <option value="ngram-map-k4v">ngram-map-k4v</option>
+                  <option value="ngram-mod">ngram-mod</option>
+                  <option value="ngram-cache">ngram-cache</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Spec Draft N Max</label>
+                <input x-model.number="form.spec_draft_n_max" type="number" placeholder="e.g. 4"
+                       class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Extra args (space or newline separated)</label>
+              <textarea x-model="form.additional_args_raw" rows="2"
+                        placeholder="--split-mode tensor&#10;--no-mmap"
+                        class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none"></textarea>
+            </div>
+          </div>
 
         </div>
         <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-800">
@@ -497,6 +535,7 @@ function llamaDeck() {
     editingId: null,
     selectedLog: null,
     logContent: '',
+    activeTab: 'general',
 
     // Form
     form: {
@@ -520,6 +559,8 @@ function llamaDeck() {
       top_p: null,
       top_k: null,
       no_metrics: false,
+      spec_type: '',
+      spec_draft_n_max: null,
     },
 
     // ── Init ──────────────────────────────────────────────────────
@@ -617,6 +658,8 @@ function llamaDeck() {
         top_p: inst.top_p,
         top_k: inst.top_k,
         no_metrics: inst.no_metrics || false,
+        spec_type: inst.spec_type || null,
+        spec_draft_n_max: inst.spec_draft_n_max,
       };
       const res = await fetch('/api/instances', {
         method: 'POST',
@@ -640,6 +683,7 @@ function llamaDeck() {
     editInstance(inst) {
       if (inst.status === 'running') return;
       this.editingId = inst.id;
+      this.activeTab = 'general';
       this.form = {
         name: inst.name,
         model_path: inst.model_path,
@@ -661,6 +705,8 @@ function llamaDeck() {
         top_p: inst.top_p,
         top_k: inst.top_k,
         no_metrics: inst.no_metrics || false,
+        spec_type: inst.spec_type || '',
+        spec_draft_n_max: inst.spec_draft_n_max,
       };
     },
 
@@ -709,6 +755,8 @@ function llamaDeck() {
         top_p: this.form.top_p,
         top_k: this.form.top_k,
         no_metrics: this.form.no_metrics,
+        spec_type: this.form.spec_type || null,
+        spec_draft_n_max: this.form.spec_draft_n_max,
       };
 
       try {
@@ -740,6 +788,7 @@ function llamaDeck() {
     closeModal() {
       this.showCreate = false;
       this.editingId = null;
+      this.activeTab = 'general';
       this.form = {
         name: '', model_path: '', gpus: [], gpusRaw: '',
         gpu_mode: 'pin', gpu_count: 1,
@@ -748,6 +797,7 @@ function llamaDeck() {
         parallel: 4, flash_attention: true, additional_args_raw: '',
         alias: '', cache_type_k: '', cache_type_v: '',
         temp: null, top_p: null, top_k: null, no_metrics: false,
+        spec_type: '', spec_draft_n_max: null,
       };
     },
 

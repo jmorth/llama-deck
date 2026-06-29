@@ -422,6 +422,10 @@ class InstanceManager:
             cmd.extend(["--top-k", str(inst.top_k)])
         if inst.no_metrics:
             cmd.append("--no-metrics")
+        if inst.spec_type:
+            cmd.extend(["--spec-type", inst.spec_type])
+        if inst.spec_draft_n_max is not None:
+            cmd.extend(["--spec-draft-n-max", str(inst.spec_draft_n_max)])
         cmd.extend(inst.additional_args)
         return cmd
 

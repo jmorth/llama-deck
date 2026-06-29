@@ -58,6 +58,8 @@ class LlamaInstance(BaseModel):
     top_p: Optional[float] = None
     top_k: Optional[int] = None
     no_metrics: bool = False
+    spec_type: Optional[str] = None
+    spec_draft_n_max: Optional[int] = None
     created_at: str = ""
     started_at: Optional[str] = None
     error_message: Optional[str] = None
@@ -84,6 +86,8 @@ class InstanceCreate(BaseModel):
     top_p: Optional[float] = None
     top_k: Optional[int] = None
     no_metrics: bool = False
+    spec_type: Optional[str] = None
+    spec_draft_n_max: Optional[int] = None
 
     @model_validator(mode="after")
     def _check_gpu_exclusivity(self) -> "InstanceCreate":
@@ -111,6 +115,8 @@ class InstanceUpdate(BaseModel):
     top_p: Optional[float] = None
     top_k: Optional[int] = None
     no_metrics: Optional[bool] = None
+    spec_type: Optional[str] = None
+    spec_draft_n_max: Optional[int] = None
 
     @model_validator(mode="after")
     def _check_gpu_exclusivity(self) -> "InstanceUpdate":
