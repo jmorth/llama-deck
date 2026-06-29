@@ -89,6 +89,12 @@ async def api_gpus():
     return get_gpu_status()
 
 
+@app.get("/api/gpus/availability")
+async def api_gpu_availability():
+    """Get GPU availability — which GPUs are free vs in use."""
+    return _mgr().get_gpu_availability()
+
+
 # ── API: Instances ───────────────────────────────────────────────────
 
 @app.get("/api/instances", response_model=list[LlamaInstance])
@@ -148,6 +154,12 @@ async def api_start_instance(instance_id: str):
         raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/instances/{instance_id}/can-start")
+async def api_can_start(instance_id: str):
+    """Check if an instance can be started (GPUs available, etc.)."""
+    return _mgr().can_start(instance_id)
 
 
 @app.post("/api/instances/{instance_id}/stop", response_model=LlamaInstance)

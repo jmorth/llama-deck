@@ -9,6 +9,8 @@ Define models, assign GPUs, start/stop — all from a clean web dashboard.
 ## Features
 
 - **Multi-GPU management** — assign 1–N GPUs per instance via `CUDA_VISIBLE_DEVICES`
+- **GPU pinning or auto-assign** — pin instances to specific GPUs, or specify a count and let LlamaDeck auto-assign free GPUs on start
+- **Smart Start button** — disabled with tooltip when pinned GPUs are unavailable or not enough free GPUs for auto-assign
 - **Web dashboard** — real-time GPU monitoring, instance management, log viewer
 - **REST API** — full CRUD for instances, GPU status, model discovery
 - **Port auto-assignment** — configurable range, no conflicts
@@ -64,12 +66,14 @@ LLAMA_SERVER_PATH=/usr/local/bin/llama-server
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/gpus` | GPU status (nvidia-smi) |
+| `GET` | `/api/gpus/availability` | GPU availability (free vs in-use) |
 | `GET` | `/api/instances` | List all instances |
 | `POST` | `/api/instances` | Create instance |
 | `GET` | `/api/instances/{id}` | Get instance details |
 | `PUT` | `/api/instances/{id}` | Update instance (must be stopped) |
 | `DELETE` | `/api/instances/{id}` | Delete instance |
 | `POST` | `/api/instances/{id}/start` | Start instance |
+| `GET` | `/api/instances/{id}/can-start` | Check if instance can be started |
 | `POST` | `/api/instances/{id}/stop` | Stop instance |
 | `POST` | `/api/instances/start-all` | Start all stopped instances |
 | `POST` | `/api/instances/stop-all` | Stop all running instances |
@@ -80,7 +84,7 @@ LLAMA_SERVER_PATH=/usr/local/bin/llama-server
 ### Example: Create and start an instance
 
 ```bash
-# Create Qwen 27B on GPUs 0,1
+# Pin to specific GPUs — Qwen 27B on GPUs 0,1
 curl -X POST http://localhost:8080/api/instances \
   -H 'Content-Type: application/json' \
   -d '{
@@ -91,20 +95,38 @@ curl -X POST http://localhost:8080/api/instances \
     "parallel": 4
   }'
 
+# Auto-assign — let LlamaDeck pick 2 free GPUs at start time
+curl -X POST http://localhost:8080/api/instances \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Gemma 26B",
+    "model_path": "/models/gemma-26b.gguf",
+    "gpu_count": 2,
+    "context_size": 8192,
+    "parallel": 4
+  }'
+
 # Start it
 curl -X POST http://localhost:8080/api/instances/<id>/start
 ```
 
 ## Use Case Examples
 
-### "GPU 0+1 for Qwen 27B, GPU 2+3 for Gemma 26B"
+### "GPU 0+1 for Qwen 27B, GPU 2+3 for Gemma 26B" (pinned)
 
 1. Open http://localhost:8080
 2. Click **+ New Instance**
-3. Name: "Qwen 27B", Model: select from dropdown, GPUs: check 0 and 1, Create
+3. Name: "Qwen 27B", Model: select from dropdown, GPU Assignment: Pin to GPUs → check 0 and 1, Create
 4. Click **+ New Instance**
-5. Name: "Gemma 26B", Model: select from dropdown, GPUs: check 2 and 3, Create
+5. Name: "Gemma 26B", Model: select from dropdown, GPU Assignment: Pin to GPUs → check 2 and 3, Create
 6. Click **▶ Start** on both
+
+### "I just need 2 GPUs for any model" (auto-assign)
+
+1. Open http://localhost:8080
+2. Click **+ New Instance**
+3. Name: "Qwen 27B", Model: select from dropdown, GPU Assignment: Auto-assign → 2, Create
+4. Click **▶ Start** — LlamaDeck assigns the first 2 free GPUs automatically
 
 ### "Spin down GPU 2+3, launch Qwen 9B on GPU 2, Gemma E4B on GPU 3"
 
@@ -112,6 +134,14 @@ curl -X POST http://localhost:8080/api/instances/<id>/start
 2. Delete it or edit to use fewer GPUs
 3. Create "Qwen 9B" → GPU 2, Create "Gemma E4B" → GPU 3
 4. Start both
+
+### GPU availability and the Start button
+
+The **▶ Start** button automatically disables when GPUs aren't available:
+
+- **Pinned GPUs** — disabled if any pinned GPU is in use by another running instance
+- **Auto-assign** — disabled if fewer free GPUs exist than requested
+- Hover over the disabled button to see the reason (e.g. "Pinned GPU(s) [0] in use")
 
 ## Environment Variables
 

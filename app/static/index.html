@@ -149,6 +149,14 @@
                     <span class="text-gray-600">GPUs:</span>
                     <span class="text-gray-400 font-mono" x-text="inst.gpus.join(', ')"></span>
                   </span>
+                  <span x-show="inst.gpu_count && inst.gpu_count > 0 && inst.gpus.length === 0">
+                    <span class="text-gray-600">GPUs:</span>
+                    <span class="text-blue-400 font-mono" x-text="`auto (${inst.gpu_count})`"></span>
+                  </span>
+                  <span x-show="inst.gpu_count && inst.gpu_count > 0 && inst.gpus.length > 0">
+                    <span class="text-gray-600">Mode:</span>
+                    <span class="text-blue-400 font-mono">auto-assigned</span>
+                  </span>
                   <span>
                     <span class="text-gray-600">Port:</span>
                     <a :href="`http://${location.hostname}:${inst.port}`" target="_blank"
@@ -175,9 +183,18 @@
               <!-- Right: actions -->
               <div class="flex items-center gap-2 shrink-0">
                 <template x-if="inst.status === 'stopped' || inst.status === 'error'">
-                  <button @click="startInstance(inst.id)" class="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded transition">
-                    ▶ Start
-                  </button>
+                  <div class="relative group">
+                    <button @click="startInstance(inst.id)"
+                            class="text-xs px-3 py-1.5 rounded transition"
+                            :class="canStart(inst).ok ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'"
+                            :disabled="!canStart(inst).ok">
+                      ▶ Start
+                    </button>
+                    <template x-if="!canStart(inst).ok && canStart(inst).reason">
+                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-800 border border-gray-700 rounded text-xs text-red-400 whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-10"
+                           x-text="canStart(inst).reason"></div>
+                    </template>
+                  </div>
                 </template>
                 <template x-if="inst.status === 'running' || inst.status === 'starting'">
                   <button @click="stopInstance(inst.id)" class="text-xs bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded transition">
@@ -267,27 +284,55 @@
           </div>
           <!-- GPUs -->
           <div>
-            <label class="block text-xs text-gray-400 mb-1">GPUs</label>
-            <template x-if="status.gpu && status.gpu.gpus.length > 0">
-              <div class="flex flex-wrap gap-2">
-                <template x-for="gpu in status.gpu.gpus" :key="gpu.index">
-                  <label class="flex items-center gap-1.5 bg-gray-800 border rounded px-3 py-1.5 text-sm cursor-pointer transition"
-                         :class="form.gpus.includes(gpu.index) ? 'border-blue-500 bg-blue-900/30 text-blue-300' : 'border-gray-700 text-gray-400 hover:border-gray-600'">
-                    <input type="checkbox" :value="gpu.index" class="hidden"
-                           @change="toggleGpu(gpu.index)">
-                    <span class="font-mono text-xs" x-text="`GPU ${gpu.index}`"></span>
-                    <span class="text-xs text-gray-500 truncate max-w-[120px]" x-text="gpu.name"></span>
-                  </label>
+            <label class="block text-xs text-gray-400 mb-1">GPU Assignment</label>
+            <!-- Mode toggle -->
+            <div class="flex gap-1 mb-2 bg-gray-800 rounded-lg p-0.5">
+              <button type="button" @click="form.gpu_mode = 'pin'"
+                      class="flex-1 text-xs py-1.5 rounded-md transition font-medium"
+                      :class="form.gpu_mode === 'pin' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-300'">
+                📌 Pin to GPUs
+              </button>
+              <button type="button" @click="form.gpu_mode = 'auto'"
+                      class="flex-1 text-xs py-1.5 rounded-md transition font-medium"
+                      :class="form.gpu_mode === 'auto' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-300'">
+                ⚡ Auto-assign
+              </button>
+            </div>
+            <!-- Pin mode: checkboxes + raw input -->
+            <template x-if="form.gpu_mode === 'pin'">
+              <div>
+                <template x-if="status.gpu && status.gpu.gpus.length > 0">
+                  <div class="flex flex-wrap gap-2">
+                    <template x-for="gpu in status.gpu.gpus" :key="gpu.index">
+                      <label class="flex items-center gap-1.5 bg-gray-800 border rounded px-3 py-1.5 text-sm cursor-pointer transition"
+                             :class="form.gpus.includes(gpu.index) ? 'border-blue-500 bg-blue-900/30 text-blue-300' : 'border-gray-700 text-gray-400 hover:border-gray-600'">
+                        <input type="checkbox" :value="gpu.index" class="hidden"
+                               @change="toggleGpu(gpu.index)">
+                        <span class="font-mono text-xs" x-text="`GPU ${gpu.index}`"></span>
+                        <span class="text-xs text-gray-500 truncate max-w-[120px]" x-text="gpu.name"></span>
+                      </label>
+                    </template>
+                  </div>
                 </template>
+                <template x-if="!status.gpu || status.gpu.gpus.length === 0">
+                  <div class="text-xs text-gray-500 bg-gray-800 rounded px-3 py-2">
+                    No GPUs detected — instance will run on CPU. You can still manually enter GPU indices if you know them.
+                  </div>
+                </template>
+                <input x-model="form.gpusRaw" type="text" placeholder="GPU indices, e.g. 0,1"
+                       class="w-full mt-1.5 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
               </div>
             </template>
-            <template x-if="!status.gpu || status.gpu.gpus.length === 0">
-              <div class="text-xs text-gray-500 bg-gray-800 rounded px-3 py-2">
-                No GPUs detected — instance will run on CPU. You can still manually enter GPU indices if you know them.
+            <!-- Auto-assign mode: count input -->
+            <template x-if="form.gpu_mode === 'auto'">
+              <div class="flex items-center gap-3">
+                <label class="text-xs text-gray-400 shrink-0">Number of GPUs:</label>
+                <input x-model.number="form.gpu_count" type="number" min="1"
+                       class="w-24 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                <span class="text-xs text-gray-500"
+                      x-text="`${gpuAvailability.total_free} of ${gpuAvailability.total_gpus} free`"></span>
               </div>
             </template>
-            <input x-model="form.gpusRaw" type="text" placeholder="GPU indices, e.g. 0,1"
-                   class="w-full mt-1.5 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
           </div>
           <!-- Port -->
           <div>
@@ -376,6 +421,7 @@ function llamaDeck() {
     status: {},
     instances: [],
     models: [],
+    gpuAvailability: { total_gpus: 0, gpus_in_use: [], gpus_free: [], total_free: 0 },
     refreshing: false,
 
     // Modal state
@@ -391,6 +437,8 @@ function llamaDeck() {
       model_path: '',
       gpus: [],
       gpusRaw: '',
+      gpu_mode: 'pin',  // 'pin' or 'auto'
+      gpu_count: 1,
       port: null,
       host: '0.0.0.0',
       context_size: 4096,
@@ -413,14 +461,16 @@ function llamaDeck() {
     async fetchStatus() {
       this.refreshing = true;
       try {
-        const [gpuRes, instRes, modelRes] = await Promise.all([
+        const [gpuRes, instRes, modelRes, availRes] = await Promise.all([
           fetch('/api/gpus'),
           fetch('/api/instances'),
           fetch('/api/models'),
+          fetch('/api/gpus/availability'),
         ]);
         this.status.gpu = await gpuRes.json();
         this.instances = await instRes.json();
         this.models = await modelRes.json();
+        this.gpuAvailability = await availRes.json();
         // Also fetch config
         const statusRes = await fetch('/api/status');
         const fullStatus = await statusRes.json();
@@ -488,6 +538,8 @@ function llamaDeck() {
         model_path: inst.model_path,
         gpus: [...inst.gpus],
         gpusRaw: inst.gpus.join(','),
+        gpu_mode: inst.gpu_count ? 'auto' : 'pin',
+        gpu_count: inst.gpu_count || 1,
         port: inst.port,
         host: inst.host,
         context_size: inst.context_size,
@@ -509,17 +561,24 @@ function llamaDeck() {
     },
 
     async saveInstance() {
-      // Merge GPU sources
-      let gpus = [...this.form.gpus];
-      if (this.form.gpusRaw) {
-        const raw = this.form.gpusRaw.split(/[,\s]+/).map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-        gpus = [...new Set([...gpus, ...raw])];
+      // Merge GPU sources — only when in pin mode
+      let gpus = [];
+      let gpuCount = null;
+      if (this.form.gpu_mode === 'pin') {
+        gpus = [...this.form.gpus];
+        if (this.form.gpusRaw) {
+          const raw = this.form.gpusRaw.split(/[,\\s]+/).map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+          gpus = [...new Set([...gpus, ...raw])];
+        }
+      } else {
+        gpuCount = this.form.gpu_count || null;
       }
 
       const body = {
         name: this.form.name,
         model_path: this.form.model_path,
         gpus: gpus,
+        gpu_count: gpuCount,
         port: this.form.port || null,
         host: this.form.host,
         context_size: this.form.context_size,
@@ -561,7 +620,9 @@ function llamaDeck() {
       this.showCreate = false;
       this.editingId = null;
       this.form = {
-        name: '', model_path: '', gpus: [], gpusRaw: '', port: null,
+        name: '', model_path: '', gpus: [], gpusRaw: '',
+        gpu_mode: 'pin', gpu_count: 1,
+        port: null,
         host: '0.0.0.0', context_size: 4096, n_gpu_layers: 999,
         parallel: 4, flash_attention: true, additional_args_raw: '',
       };
@@ -571,6 +632,28 @@ function llamaDeck() {
     getGpuAssignment(gpuIndex) {
       const inst = this.instances.find(i => i.gpus.includes(gpuIndex) && i.status === 'running');
       return inst ? inst.name : null;
+    },
+
+    canStart(inst) {
+      if (inst.status !== 'stopped' && inst.status !== 'error') return { ok: false, reason: 'Instance is ' + inst.status };
+      const avail = this.gpuAvailability;
+      // Pinned GPUs
+      if (inst.gpus && inst.gpus.length > 0) {
+        const missing = inst.gpus.filter(g => avail.gpus_in_use.includes(g));
+        if (missing.length > 0) return { ok: false, reason: 'Pinned GPU(s) ' + missing.join(', ') + ' in use' };
+        // Check GPUs exist on system
+        const allSystem = new Set([...avail.gpus_in_use, ...avail.gpus_free]);
+        const missingSys = inst.gpus.filter(g => !allSystem.has(g));
+        if (missingSys.length > 0) return { ok: false, reason: 'GPU(s) ' + missingSys.join(', ') + ' not found' };
+        return { ok: true, reason: '' };
+      }
+      // Auto-assign count
+      if (inst.gpu_count && inst.gpu_count > 0) {
+        if (avail.total_free < inst.gpu_count) return { ok: false, reason: 'Need ' + inst.gpu_count + ' GPU(s), only ' + avail.total_free + ' free' };
+        return { ok: true, reason: '' };
+      }
+      // CPU only
+      return { ok: true, reason: '' };
     },
   };
 }

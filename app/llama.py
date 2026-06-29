@@ -11,10 +11,11 @@ import time
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 import psutil
 
+from .gpu import get_gpu_status
 from .models import (
     Config,
     InstanceCreate,
@@ -87,6 +88,98 @@ class InstanceManager:
                 inst.status = InstanceStatus.STOPPED
         self._save_state()
 
+    # ── GPU availability ───────────────────────────────────────────
+
+    def _gpus_in_use(self) -> Set[int]:
+        """Return the set of GPU indices currently assigned to running instances."""
+        used: Set[int] = set()
+        for inst in self.instances.values():
+            if inst.status == InstanceStatus.RUNNING and inst.gpus:
+                used.update(inst.gpus)
+        return used
+
+    def get_gpu_availability(self) -> dict:
+        """Return GPU availability info for the frontend.
+
+        Returns dict with:
+          total_gpus: total GPU count on the system
+          gpus_in_use: list of GPU indices currently in use
+          gpus_free: list of GPU indices that are free
+          total_free: count of free GPUs
+        """
+        gpu_status = get_gpu_status()
+        all_indices = {gpu.index for gpu in gpu_status.gpus}
+        in_use = self._gpus_in_use()
+        free = sorted(all_indices - in_use)
+        return {
+            "total_gpus": len(all_indices),
+            "gpus_in_use": sorted(in_use & all_indices),
+            "gpus_free": free,
+            "total_free": len(free),
+        }
+
+    def can_start(self, instance_id: str) -> dict:
+        """Check whether an instance can be started.
+
+        Returns dict with:
+          ok: bool
+          reason: str (if not ok)
+        """
+        inst = self.instances.get(instance_id)
+        if not inst:
+            return {"ok": False, "reason": "Instance not found"}
+        if inst.status == InstanceStatus.RUNNING:
+            return {"ok": False, "reason": "Already running"}
+        if inst.status in (InstanceStatus.STARTING, InstanceStatus.STOPPING):
+            return {"ok": False, "reason": f"Instance is {inst.status.value}"}
+
+        avail = self.get_gpu_availability()
+
+        # Pinned GPUs — all requested must be free
+        if inst.gpus:
+            missing = [g for g in inst.gpus if g in avail["gpus_in_use"]]
+            if missing:
+                return {
+                    "ok": False,
+                    "reason": f"Pinned GPU(s) {missing} in use by another instance",
+                }
+            # Also check GPUs exist on the system
+            all_system = set(avail["gpus_in_use"]) | set(avail["gpus_free"])
+            missing_sys = [g for g in inst.gpus if g not in all_system]
+            if missing_sys:
+                return {
+                    "ok": False,
+                    "reason": f"GPU(s) {missing_sys} not found on system",
+                }
+            return {"ok": True, "reason": ""}
+
+        # Auto-assign count — need enough free
+        if inst.gpu_count is not None and inst.gpu_count > 0:
+            if avail["total_free"] < inst.gpu_count:
+                return {
+                    "ok": False,
+                    "reason": f"Need {inst.gpu_count} GPU(s), only {avail['total_free']} free",
+                }
+            return {"ok": True, "reason": ""}
+
+        # No GPUs requested — CPU only, always OK
+        return {"ok": True, "reason": ""}
+
+    def _assign_gpus(self, inst: LlamaInstance) -> None:
+        """Auto-assign GPUs for an instance with gpu_count set.
+
+        Picks the first N free GPU indices and writes them into inst.gpus.
+        Raises RuntimeError if not enough GPUs are available.
+        """
+        if not inst.gpu_count or inst.gpu_count <= 0:
+            return
+        avail = self.get_gpu_availability()
+        if avail["total_free"] < inst.gpu_count:
+            raise RuntimeError(
+                f"Need {inst.gpu_count} GPU(s), only {avail['total_free']} free"
+            )
+        inst.gpus = avail["gpus_free"][: inst.gpu_count]
+
     # ── Port allocation ──────────────────────────────────────────────
 
     def _next_port(self) -> int:
@@ -113,6 +206,7 @@ class InstanceManager:
             name=data.name,
             model_path=data.model_path,
             gpus=data.gpus,
+            gpu_count=data.gpu_count,
             port=port,
             host=data.host,
             context_size=data.context_size,
@@ -163,6 +257,11 @@ class InstanceManager:
 
         inst.status = InstanceStatus.STARTING
         inst.error_message = None
+
+        # Auto-assign GPUs if gpu_count is set
+        if inst.gpu_count and not inst.gpus:
+            self._assign_gpus(inst)
+            self._save_state()  # persist the assigned GPUs
 
         # Build command
         cmd = self._build_command(inst)
