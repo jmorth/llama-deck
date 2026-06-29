@@ -51,6 +51,13 @@ class LlamaInstance(BaseModel):
     parallel: int = 4
     flash_attention: bool = True
     additional_args: List[str] = Field(default_factory=list)
+    alias: Optional[str] = None
+    cache_type_k: Optional[str] = None
+    cache_type_v: Optional[str] = None
+    temp: Optional[float] = None
+    top_p: Optional[float] = None
+    top_k: Optional[int] = None
+    no_metrics: bool = False
     created_at: str = ""
     started_at: Optional[str] = None
     error_message: Optional[str] = None
@@ -70,6 +77,13 @@ class InstanceCreate(BaseModel):
     parallel: int = 4
     flash_attention: bool = True
     additional_args: List[str] = Field(default_factory=list)
+    alias: Optional[str] = None
+    cache_type_k: Optional[str] = None
+    cache_type_v: Optional[str] = None
+    temp: Optional[float] = None
+    top_p: Optional[float] = None
+    top_k: Optional[int] = None
+    no_metrics: bool = False
 
     @model_validator(mode="after")
     def _check_gpu_exclusivity(self) -> "InstanceCreate":
@@ -90,6 +104,13 @@ class InstanceUpdate(BaseModel):
     parallel: Optional[int] = None
     flash_attention: Optional[bool] = None
     additional_args: Optional[List[str]] = None
+    alias: Optional[str] = None
+    cache_type_k: Optional[str] = None
+    cache_type_v: Optional[str] = None
+    temp: Optional[float] = None
+    top_p: Optional[float] = None
+    top_k: Optional[int] = None
+    no_metrics: Optional[bool] = None
 
     @model_validator(mode="after")
     def _check_gpu_exclusivity(self) -> "InstanceUpdate":

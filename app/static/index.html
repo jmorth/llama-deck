@@ -273,6 +273,12 @@
             <input x-model="form.name" type="text" placeholder="e.g. Qwen 27B, Gemma 26B"
                    class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
           </div>
+          <!-- Alias -->
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Alias <span class="text-gray-600">(optional, passed as --alias)</span></label>
+            <input x-model="form.alias" type="text" placeholder="e.g. qwen-27b"
+                   class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+          </div>
           <!-- Model path -->
           <div>
             <label class="block text-xs text-gray-400 mb-1">Model path (.gguf)</label>
@@ -377,11 +383,72 @@
                 <input type="checkbox" x-model="form.flash_attention" id="flash" class="rounded">
                 <label for="flash" class="text-xs text-gray-400">Flash Attention</label>
               </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Cache Type K</label>
+                  <select x-model="form.cache_type_k"
+                          class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                    <option value="">— default —</option>
+                    <option value="f32">f32</option>
+                    <option value="f16">f16</option>
+                    <option value="bf16">bf16</option>
+                    <option value="q8_0">q8_0</option>
+                    <option value="q4_0">q4_0</option>
+                    <option value="q4_1">q4_1</option>
+                    <option value="iq4_nl">iq4_nl</option>
+                    <option value="q5_0">q5_0</option>
+                    <option value="q5_1">q5_1</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Cache Type V</label>
+                  <select x-model="form.cache_type_v"
+                          class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                    <option value="">— default —</option>
+                    <option value="f32">f32</option>
+                    <option value="f16">f16</option>
+                    <option value="bf16">bf16</option>
+                    <option value="q8_0">q8_0</option>
+                    <option value="q4_0">q4_0</option>
+                    <option value="q4_1">q4_1</option>
+                    <option value="iq4_nl">iq4_nl</option>
+                    <option value="q5_0">q5_0</option>
+                    <option value="q5_1">q5_1</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Temperature</label>
+                  <input x-model.number="form.temp" type="number" step="0.1" placeholder="e.g. 0.8"
+                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Top P</label>
+                  <input x-model.number="form.top_p" type="number" step="0.05" placeholder="e.g. 0.95"
+                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Top K</label>
+                  <input x-model.number="form.top_k" type="number" placeholder="e.g. 40"
+                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                </div>
+              </div>
               <div>
                 <label class="block text-xs text-gray-400 mb-1">Extra args (space or newline separated)</label>
                 <textarea x-model="form.additional_args_raw" rows="2"
                           placeholder="--split-mode tensor&#10;--no-mmap"
                           class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none"></textarea>
+              </div>
+            </div>
+          </details>
+          <!-- Metrics toolbox -->
+          <details class="bg-gray-800/50 rounded-lg">
+            <summary class="text-xs text-gray-400 px-3 py-2 cursor-pointer hover:text-gray-300">Metrics</summary>
+            <div class="px-3 pb-3 pt-1 space-y-3">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" x-model="form.no_metrics" id="no_metrics" class="rounded">
+                <label for="no_metrics" class="text-xs text-gray-400">Disable metrics endpoint (--no-metrics)</label>
               </div>
             </div>
           </details>
@@ -451,6 +518,13 @@ function llamaDeck() {
       parallel: 4,
       flash_attention: true,
       additional_args_raw: '',
+      alias: '',
+      cache_type_k: '',
+      cache_type_v: '',
+      temp: null,
+      top_p: null,
+      top_k: null,
+      no_metrics: false,
     },
 
     // ── Init ──────────────────────────────────────────────────────
@@ -541,6 +615,13 @@ function llamaDeck() {
         parallel: inst.parallel,
         flash_attention: inst.flash_attention,
         additional_args: [...inst.additional_args],
+        alias: inst.alias || null,
+        cache_type_k: inst.cache_type_k || null,
+        cache_type_v: inst.cache_type_v || null,
+        temp: inst.temp,
+        top_p: inst.top_p,
+        top_k: inst.top_k,
+        no_metrics: inst.no_metrics || false,
       };
       const res = await fetch('/api/instances', {
         method: 'POST',
@@ -578,6 +659,13 @@ function llamaDeck() {
         parallel: inst.parallel,
         flash_attention: inst.flash_attention,
         additional_args_raw: (inst.additional_args || []).join(' '),
+        alias: inst.alias || '',
+        cache_type_k: inst.cache_type_k || '',
+        cache_type_v: inst.cache_type_v || '',
+        temp: inst.temp,
+        top_p: inst.top_p,
+        top_k: inst.top_k,
+        no_metrics: inst.no_metrics || false,
       };
     },
 
@@ -619,6 +707,13 @@ function llamaDeck() {
         additional_args: this.form.additional_args_raw
           ? this.form.additional_args_raw.split('\n').flatMap(s => s.trim().split(/\s+/).filter(Boolean))
           : [],
+        alias: this.form.alias || null,
+        cache_type_k: this.form.cache_type_k || null,
+        cache_type_v: this.form.cache_type_v || null,
+        temp: this.form.temp,
+        top_p: this.form.top_p,
+        top_k: this.form.top_k,
+        no_metrics: this.form.no_metrics,
       };
 
       try {
@@ -656,6 +751,8 @@ function llamaDeck() {
         port: null,
         host: '0.0.0.0', context_size: 4096, n_gpu_layers: 999,
         parallel: 4, flash_attention: true, additional_args_raw: '',
+        alias: '', cache_type_k: '', cache_type_v: '',
+        temp: null, top_p: null, top_k: null, no_metrics: false,
       };
     },
 

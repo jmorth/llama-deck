@@ -408,6 +408,20 @@ class InstanceManager:
         cmd.extend(["--parallel", str(inst.parallel)])
         if inst.flash_attention:
             cmd.extend(["--flash-attn", "on"])
+        if inst.alias:
+            cmd.extend(["--alias", inst.alias])
+        if inst.cache_type_k:
+            cmd.extend(["--cache-type-k", inst.cache_type_k])
+        if inst.cache_type_v:
+            cmd.extend(["--cache-type-v", inst.cache_type_v])
+        if inst.temp is not None:
+            cmd.extend(["--temp", str(inst.temp)])
+        if inst.top_p is not None:
+            cmd.extend(["--top-p", str(inst.top_p)])
+        if inst.top_k is not None:
+            cmd.extend(["--top-k", str(inst.top_k)])
+        if inst.no_metrics:
+            cmd.append("--no-metrics")
         cmd.extend(inst.additional_args)
         return cmd
 
