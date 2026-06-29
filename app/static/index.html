@@ -243,8 +243,31 @@
           No .gguf models found in <code class="text-gray-400" x-text="status.config?.models_dir || '/models'"></code>
         </div>
       </template>
+      <!-- Filter bar -->
+      <template x-if="models.length > 0">
+        <div class="flex gap-2 mb-3">
+          <select x-model="filterAuthor"
+                  class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none">
+            <option value="">All Authors</option>
+            <template x-for="a in uniqueAuthors" :key="a">
+              <option :value="a" x-text="a"></option>
+            </template>
+          </select>
+          <select x-model="filterModel"
+                  class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none">
+            <option value="">All Models</option>
+            <template x-for="m in uniqueModelTags" :key="m">
+              <option :value="m" x-text="m"></option>
+            </template>
+          </select>
+          <button x-show="filterAuthor || filterModel" @click="filterAuthor = ''; filterModel = ''"
+                  class="text-xs text-gray-500 hover:text-gray-300 px-2 py-1 rounded hover:bg-gray-800 transition">
+            Clear
+          </button>
+        </div>
+      </template>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-        <template x-for="model in models" :key="model.path">
+        <template x-for="model in filteredModels" :key="model.path">
           <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 cursor-pointer hover:border-gray-700 transition"
                @click="prefillModel(model.path)">
             <div class="flex items-center justify-between mb-1.5">
@@ -546,6 +569,8 @@ function llamaDeck() {
     selectedLog: null,
     logContent: '',
     activeTab: 'general',
+    filterAuthor: '',
+    filterModel: '',
 
     // Form
     form: {
@@ -812,6 +837,19 @@ function llamaDeck() {
     },
 
     // ── Helpers ───────────────────────────────────────────────────
+    get uniqueAuthors() {
+      return [...new Set(this.models.map(m => m.author).filter(Boolean))].sort();
+    },
+    get uniqueModelTags() {
+      return [...new Set(this.models.map(m => m.model_tag).filter(Boolean))].sort();
+    },
+    get filteredModels() {
+      return this.models.filter(m => {
+        if (this.filterAuthor && m.author !== this.filterAuthor) return false;
+        if (this.filterModel && m.model_tag !== this.filterModel) return false;
+        return true;
+      });
+    },
     getGpuAssignment(gpuIndex) {
       const inst = this.instances.find(i => i.gpus.includes(gpuIndex) && i.status === 'running');
       return inst ? inst.name : null;
