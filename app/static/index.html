@@ -215,6 +215,11 @@
                         :disabled="inst.status === 'running'">
                   ✏️
                 </button>
+                <button @click="duplicateInstance(inst)"
+                        class="text-xs text-gray-400 hover:text-white px-2 py-1.5 rounded hover:bg-gray-800 transition"
+                        title="Duplicate">
+                  📄
+                </button>
                 <button @click="deleteInstance(inst.id, inst.name)"
                         class="text-xs text-gray-400 hover:text-red-400 px-2 py-1.5 rounded hover:bg-gray-800 transition"
                         title="Delete">
@@ -521,6 +526,32 @@ function llamaDeck() {
     async deleteInstance(id, name) {
       if (!confirm(`Delete instance "${name}"?`)) return;
       await fetch(`/api/instances/${id}`, { method: 'DELETE' });
+      await this.fetchStatus();
+    },
+    async duplicateInstance(inst) {
+      const body = {
+        name: 'Copy Of ' + inst.name,
+        model_path: inst.model_path,
+        gpus: inst.gpu_count ? [] : [...inst.gpus],
+        gpu_count: inst.gpu_count,
+        port: null,  // auto-assign
+        host: inst.host,
+        context_size: inst.context_size,
+        n_gpu_layers: inst.n_gpu_layers,
+        parallel: inst.parallel,
+        flash_attention: inst.flash_attention,
+        additional_args: [...inst.additional_args],
+      };
+      const res = await fetch('/api/instances', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`Error: ${err.detail || 'Failed to duplicate'}`);
+        return;
+      }
       await this.fetchStatus();
     },
 
