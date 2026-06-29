@@ -93,7 +93,7 @@ class InstanceUpdate(BaseModel):
 
     @model_validator(mode="after")
     def _check_gpu_exclusivity(self) -> "InstanceUpdate":
-        if self.gpus is not None and self.gpu_count is not None:
+        if self.gpus and self.gpu_count is not None:
             raise ValueError("gpus (pinned) and gpu_count (auto-assign) are mutually exclusive")
         return self
 
