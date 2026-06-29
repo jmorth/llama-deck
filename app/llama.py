@@ -375,7 +375,12 @@ class InstanceManager:
     # ── Model discovery ──────────────────────────────────────────────
 
     def list_models(self) -> List[ModelFile]:
-        """List .gguf files in the models directory."""
+        """List .gguf files in the models directory.
+
+        Tags are derived from the folder layout relative to models_dir:
+          /models/<author>/<model>/<file>.gguf  →  author="Google", model_tag="Gemma 4"
+        Kebab-case segments are title-cased; a leading 'v' followed by digits is kept as-is.
+        """
         models_dir = Path(self.config.models_dir)
         if not models_dir.exists():
             return []
@@ -386,12 +391,27 @@ class InstanceManager:
             if "mmproj" in f.name.lower():
                 continue
             size = f.stat().st_size
+
+            # Derive tags from relative folder path
+            rel = f.relative_to(models_dir)
+            parts = rel.parts  # e.g. ("google", "gemma-4", "model.gguf")
+            author = None
+            model_tag = None
+            if len(parts) >= 3:
+                author = _title_tag(parts[0])
+                model_tag = _title_tag(parts[1])
+            elif len(parts) == 2:
+                # /models/<model>/<file>.gguf — treat as model tag only
+                model_tag = _title_tag(parts[0])
+
             models.append(
                 ModelFile(
                     name=f.name,
                     path=str(f),
                     size_bytes=size,
                     size_human=_human_size(size),
+                    author=author,
+                    model_tag=model_tag,
                 )
             )
         return models
@@ -502,3 +522,22 @@ def _human_size(size_bytes: int) -> str:
             return f"{size_bytes:.1f} {unit}"
         size_bytes /= 1024
     return f"{size_bytes:.1f} PB"
+
+
+def _title_tag(s: str) -> str:
+    """Convert a kebab-case / snake_case folder segment to Title Case.
+
+    A leading 'v' followed by digits is preserved as-is (e.g. 'v7' → 'V7').
+    """
+    if not s:
+        return s
+    # Split on hyphens and underscores
+    parts = s.replace("_", "-").split("-")
+    result = []
+    for i, p in enumerate(parts):
+        if i == 0 and p.startswith("v") and p[1:].isdigit():
+            # Version prefix: "v7" → "V7", "v0.3" handled via normal title
+            result.append(p.capitalize())
+        else:
+            result.append(p.capitalize())
+    return " ".join(result)

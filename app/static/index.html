@@ -245,13 +245,23 @@
       </template>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
         <template x-for="model in models" :key="model.path">
-          <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 flex items-center justify-between cursor-pointer hover:border-gray-700 transition"
+          <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 cursor-pointer hover:border-gray-700 transition"
                @click="prefillModel(model.path)">
-            <div class="min-w-0 flex-1">
-              <div class="text-sm text-gray-300 truncate" x-text="model.name"></div>
-              <div class="text-xs text-gray-500 font-mono" x-text="model.size_human"></div>
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <template x-if="model.author">
+                  <span class="text-xs px-1.5 py-0.5 rounded font-medium bg-orange-900/50 text-orange-400 shrink-0"
+                        x-text="model.author"></span>
+                </template>
+                <template x-if="model.model_tag">
+                  <span class="text-xs px-1.5 py-0.5 rounded font-medium bg-purple-900/50 text-purple-400 shrink-0"
+                        x-text="model.model_tag"></span>
+                </template>
+              </div>
+              <span class="text-xs text-blue-400 ml-2 shrink-0">use →</span>
             </div>
-            <span class="text-xs text-blue-400 ml-2 shrink-0">use →</span>
+            <div class="text-sm text-gray-300 truncate" x-text="model.name"></div>
+            <div class="text-xs text-gray-500 font-mono" x-text="model.size_human"></div>
           </div>
         </template>
       </div>

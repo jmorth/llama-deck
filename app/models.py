@@ -139,6 +139,8 @@ class ModelFile(BaseModel):
     path: str
     size_bytes: int
     size_human: str
+    author: Optional[str] = None
+    model_tag: Optional[str] = None
 
 
 class OverallStatus(BaseModel):
