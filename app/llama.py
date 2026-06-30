@@ -443,8 +443,8 @@ class InstanceManager:
             cmd.extend(["--top-p", str(inst.top_p)])
         if inst.top_k is not None:
             cmd.extend(["--top-k", str(inst.top_k)])
-        if inst.no_metrics:
-            cmd.append("--no-metrics")
+        if inst.metrics:
+            cmd.append("--metrics")
         if inst.spec_type:
             cmd.extend(["--spec-type", inst.spec_type])
             # Auto-detect MTP draft model for draft-mtp spec type

@@ -57,7 +57,7 @@ class LlamaInstance(BaseModel):
     temp: Optional[float] = None
     top_p: Optional[float] = None
     top_k: Optional[int] = None
-    no_metrics: bool = False
+    metrics: bool = False
     spec_type: Optional[str] = None
     spec_draft_n_max: Optional[int] = None
     created_at: str = ""
@@ -85,7 +85,7 @@ class InstanceCreate(BaseModel):
     temp: Optional[float] = None
     top_p: Optional[float] = None
     top_k: Optional[int] = None
-    no_metrics: bool = False
+    metrics: bool = False
     spec_type: Optional[str] = None
     spec_draft_n_max: Optional[int] = None
 
@@ -114,7 +114,7 @@ class InstanceUpdate(BaseModel):
     temp: Optional[float] = None
     top_p: Optional[float] = None
     top_k: Optional[int] = None
-    no_metrics: Optional[bool] = None
+    metrics: Optional[bool] = None
     spec_type: Optional[str] = None
     spec_draft_n_max: Optional[int] = None
 

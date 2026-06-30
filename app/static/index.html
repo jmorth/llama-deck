@@ -433,8 +433,8 @@
               <label for="flash" class="text-xs text-gray-400">Flash Attention</label>
             </div>
             <div class="flex items-center gap-2">
-              <input type="checkbox" x-model="form.no_metrics" id="no_metrics" class="rounded">
-              <label for="no_metrics" class="text-xs text-gray-400">Disable metrics endpoint (--no-metrics)</label>
+              <input type="checkbox" x-model="form.metrics" id="metrics" class="rounded">
+              <label for="metrics" class="text-xs text-gray-400">Enable metrics endpoint (--metrics)</label>
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
@@ -593,7 +593,7 @@ function llamaDeck() {
       temp: null,
       top_p: null,
       top_k: null,
-      no_metrics: false,
+      metrics: false,
       spec_type: '',
       spec_draft_n_max: null,
     },
@@ -692,7 +692,7 @@ function llamaDeck() {
         temp: inst.temp,
         top_p: inst.top_p,
         top_k: inst.top_k,
-        no_metrics: inst.no_metrics || false,
+        metrics: inst.metrics || false,
         spec_type: inst.spec_type || null,
         spec_draft_n_max: inst.spec_draft_n_max,
       };
@@ -739,7 +739,7 @@ function llamaDeck() {
         temp: inst.temp,
         top_p: inst.top_p,
         top_k: inst.top_k,
-        no_metrics: inst.no_metrics || false,
+        metrics: inst.metrics || false,
         spec_type: inst.spec_type || '',
         spec_draft_n_max: inst.spec_draft_n_max,
       };
@@ -789,7 +789,7 @@ function llamaDeck() {
         temp: this.form.temp,
         top_p: this.form.top_p,
         top_k: this.form.top_k,
-        no_metrics: this.form.no_metrics,
+        metrics: this.form.metrics,
         spec_type: this.form.spec_type || null,
         spec_draft_n_max: this.form.spec_draft_n_max,
       };
@@ -831,7 +831,7 @@ function llamaDeck() {
         host: '0.0.0.0', context_size: 4096, n_gpu_layers: 999,
         parallel: 4, flash_attention: true, additional_args_raw: '',
         alias: '', cache_type_k: '', cache_type_v: '',
-        temp: null, top_p: null, top_k: null, no_metrics: false,
+        temp: null, top_p: null, top_k: null, metrics: false,
         spec_type: '', spec_draft_n_max: null,
       };
     },
