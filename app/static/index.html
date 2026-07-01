@@ -243,6 +243,16 @@
                         title="Delete">
                   🗑️
                 </button>
+                <template x-if="inst.metrics">
+                  <a :href="inst.status === 'running' ? `http://${location.hostname}:${inst.port}/metrics` : '#'"
+                     target="_blank"
+                     class="text-xs px-2 py-1.5 rounded transition"
+                     :class="inst.status === 'running' ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-600 pointer-events-none'"
+                     title="View metrics"
+                     @click.prevent="inst.status !== 'running'">
+                    📊
+                  </a>
+                </template>
               </div>
             </div>
           </div>
