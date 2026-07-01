@@ -116,6 +116,16 @@
           </button>
         </div>
       </div>
+      <div class="flex items-center gap-2 mb-3" x-show="instances.length > 1">
+        <span class="text-xs text-gray-600">Sort:</span>
+        <template x-for="opt in [{k:'name',l:'Name'},{k:'status',l:'Status'},{k:'model',l:'Model'},{k:'author',l:'Author'}]" :key="opt.k">
+          <button @click="sortKey === opt.k ? (sortAsc = !sortAsc) : (sortKey = opt.k; sortAsc = true)"
+                  class="px-2 py-0.5 rounded text-xs transition"
+                  :class="sortKey === opt.k ? 'bg-blue-900/50 text-blue-400 font-medium' : 'text-gray-500 hover:bg-gray-800 hover:text-gray-300'">
+            <span x-text="opt.l"></span><span x-show="sortKey === opt.k" x-text="sortAsc ? ' ↑' : ' ↓'"></span>
+          </button>
+        </template>
+      </div>
 
       <!-- Empty state -->
       <template x-if="instances.length === 0">
@@ -130,7 +140,7 @@
 
       <!-- Instance cards -->
       <div class="space-y-3">
-        <template x-for="inst in instances" :key="inst.id">
+        <template x-for="inst in sortedInstances" :key="inst.id">
           <div class="bg-gray-900 border rounded-lg p-4 fade-in"
                :class="inst.status === 'running' ? 'border-green-800/50' : inst.status === 'error' ? 'border-red-800/50' : 'border-gray-800'">
             <div class="flex items-start justify-between gap-4">
@@ -579,6 +589,8 @@ function llamaDeck() {
     activeTab: 'general',
     filterAuthor: '',
     filterModel: '',
+    sortKey: 'name',
+    sortAsc: true,
 
     // Form
     form: {
@@ -856,6 +868,28 @@ function llamaDeck() {
         if (this.filterAuthor && m.author !== this.filterAuthor) return false;
         if (this.filterModel && m.model_tag !== this.filterModel) return false;
         return true;
+      });
+    },
+    get sortedInstances() {
+      const key = this.sortKey;
+      const asc = this.sortAsc;
+      const statusOrder = { running: 0, starting: 1, stopping: 2, stopped: 3, error: 4 };
+      return [...this.instances].sort((a, b) => {
+        let va, vb;
+        if (key === 'name') {
+          va = a.name.toLowerCase(); vb = b.name.toLowerCase();
+        } else if (key === 'status') {
+          va = statusOrder[a.status] ?? 5; vb = statusOrder[b.status] ?? 5;
+        } else if (key === 'model') {
+          va = (this.getModelMeta(a.model_path)?.model_tag || a.model_path).toLowerCase();
+          vb = (this.getModelMeta(b.model_path)?.model_tag || b.model_path).toLowerCase();
+        } else if (key === 'author') {
+          va = (this.getModelMeta(a.model_path)?.author || '').toLowerCase();
+          vb = (this.getModelMeta(b.model_path)?.author || '').toLowerCase();
+        } else { return 0; }
+        if (va < vb) return asc ? -1 : 1;
+        if (va > vb) return asc ? 1 : -1;
+        return 0;
       });
     },
     getGpuAssignment(gpuIndex) {
