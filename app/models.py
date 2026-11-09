@@ -59,7 +59,12 @@ class LlamaInstance(BaseModel):
     top_k: Optional[int] = None
     metrics: bool = False
     spec_type: Optional[str] = None
+    model_draft: Optional[str] = None
     spec_draft_n_max: Optional[int] = None
+    cpu_moe: bool = False
+    n_cpu_moe: Optional[int] = Field(None, ge=0)
+    moe_cache_mib: Optional[int] = Field(None, ge=0)
+    moe_cache_cpu_share: Optional[float] = Field(None, ge=0, le=1, allow_inf_nan=False)
     created_at: str = ""
     started_at: Optional[str] = None
     error_message: Optional[str] = None
@@ -87,12 +92,19 @@ class InstanceCreate(BaseModel):
     top_k: Optional[int] = None
     metrics: bool = False
     spec_type: Optional[str] = None
+    model_draft: Optional[str] = None
     spec_draft_n_max: Optional[int] = None
+    cpu_moe: bool = False
+    n_cpu_moe: Optional[int] = Field(None, ge=0)
+    moe_cache_mib: Optional[int] = Field(None, ge=0)
+    moe_cache_cpu_share: Optional[float] = Field(None, ge=0, le=1, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def _check_gpu_exclusivity(self) -> "InstanceCreate":
         if self.gpus and self.gpu_count is not None:
             raise ValueError("gpus (pinned) and gpu_count (auto-assign) are mutually exclusive")
+        if self.cpu_moe and self.n_cpu_moe:
+            raise ValueError("cpu_moe and n_cpu_moe are mutually exclusive")
         return self
 
 
@@ -116,12 +128,19 @@ class InstanceUpdate(BaseModel):
     top_k: Optional[int] = None
     metrics: Optional[bool] = None
     spec_type: Optional[str] = None
+    model_draft: Optional[str] = None
     spec_draft_n_max: Optional[int] = None
+    cpu_moe: Optional[bool] = None
+    n_cpu_moe: Optional[int] = Field(None, ge=0)
+    moe_cache_mib: Optional[int] = Field(None, ge=0)
+    moe_cache_cpu_share: Optional[float] = Field(None, ge=0, le=1, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def _check_gpu_exclusivity(self) -> "InstanceUpdate":
         if self.gpus and self.gpu_count is not None:
             raise ValueError("gpus (pinned) and gpu_count (auto-assign) are mutually exclusive")
+        if self.cpu_moe and self.n_cpu_moe:
+            raise ValueError("cpu_moe and n_cpu_moe are mutually exclusive")
         return self
 
 

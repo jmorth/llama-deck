@@ -456,6 +456,39 @@
                        class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
               </div>
             </div>
+            <details class="border border-gray-700 rounded px-3 py-2" :open="form.moe_mode !== 'off'">
+              <summary class="text-xs text-gray-400 cursor-pointer">MoE offload</summary>
+              <div class="space-y-3 mt-3">
+                <div>
+                  <label class="block text-xs text-gray-400 mb-1">Expert placement</label>
+                  <select x-model="form.moe_mode" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                    <option value="off">Off</option>
+                    <option value="all">All experts on CPU (--cpu-moe)</option>
+                    <option value="n">First N layers on CPU (--n-cpu-moe)</option>
+                  </select>
+                </div>
+                <div x-show="form.moe_mode === 'n'">
+                  <label class="block text-xs text-gray-400 mb-1">Layers with experts on CPU</label>
+                  <input x-model.number="form.n_cpu_moe" type="number" min="0"
+                         class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">Expert cache (MiB)</label>
+                    <input x-model.number="form.moe_cache_mib" type="number" min="0" placeholder="0 = off"
+                           :disabled="form.moe_mode === 'off'"
+                           class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none disabled:opacity-40">
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-400 mb-1">Cache CPU share (0-1)</label>
+                    <input x-model.number="form.moe_cache_cpu_share" type="number" min="0" max="1" step="0.05" placeholder="unset"
+                           :disabled="form.moe_mode === 'off'"
+                           class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none disabled:opacity-40">
+                  </div>
+                </div>
+                <p class="text-xs text-gray-500">The cache is GPU memory holding experts kept in RAM; CPU share is the fraction of cache misses computed on the CPU instead of uploaded. Requires a llama-server built after Nov 7, 2026.</p>
+              </div>
+            </details>
             <div class="flex items-center gap-2">
               <input type="checkbox" x-model="form.flash_attention" id="flash" class="rounded">
               <label for="flash" class="text-xs text-gray-400">Flash Attention</label>
@@ -539,6 +572,19 @@
               </div>
             </div>
             <div>
+              <label class="block text-xs text-gray-400 mb-1">Draft model (--model-draft) <span class="text-gray-600">(optional; draft-mtp auto-detects mtp-*.gguf when empty)</span></label>
+              <div x-show="draftModels.length > 0" class="mb-1.5">
+                <select x-model="form.model_draft" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                  <option value="">— none —</option>
+                  <template x-for="m in draftModels" :key="m.path">
+                    <option :value="m.path" x-text="`${m.name} (${m.size_human})`"></option>
+                  </template>
+                </select>
+              </div>
+              <input x-model="form.model_draft" type="text" placeholder="/path/to/draft-model.gguf"
+                     class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
               <label class="block text-xs text-gray-400 mb-1">Extra args (space or newline separated)</label>
               <textarea x-model="form.additional_args_raw" rows="2"
                         placeholder="--split-mode tensor&#10;--no-mmap"
@@ -587,6 +633,7 @@ function llamaDeck() {
     status: {},
     instances: [],
     models: [],
+    draftModels: [],
     gpuAvailability: { total_gpus: 0, gpus_in_use: [], gpus_free: [], total_free: 0 },
     refreshing: false,
 
@@ -625,7 +672,12 @@ function llamaDeck() {
       top_k: null,
       metrics: false,
       spec_type: '',
+      model_draft: '',
       spec_draft_n_max: null,
+      moe_mode: 'off',  // 'off', 'all' or 'n'
+      n_cpu_moe: null,
+      moe_cache_mib: null,
+      moe_cache_cpu_share: null,
     },
 
     // ── Init ──────────────────────────────────────────────────────
@@ -641,15 +693,17 @@ function llamaDeck() {
     async fetchStatus() {
       this.refreshing = true;
       try {
-        const [gpuRes, instRes, modelRes, availRes] = await Promise.all([
+        const [gpuRes, instRes, modelRes, availRes, draftRes] = await Promise.all([
           fetch('/api/gpus'),
           fetch('/api/instances'),
           fetch('/api/models'),
           fetch('/api/gpus/availability'),
+          fetch('/api/models/draft'),
         ]);
         this.status.gpu = await gpuRes.json();
         this.instances = await instRes.json();
         this.models = await modelRes.json();
+        this.draftModels = await draftRes.json();
         this.gpuAvailability = await availRes.json();
         // Also fetch config
         const statusRes = await fetch('/api/status');
@@ -724,7 +778,12 @@ function llamaDeck() {
         top_k: inst.top_k,
         metrics: inst.metrics || false,
         spec_type: inst.spec_type || null,
+        model_draft: inst.model_draft || null,
         spec_draft_n_max: inst.spec_draft_n_max,
+        cpu_moe: inst.cpu_moe || false,
+        n_cpu_moe: inst.n_cpu_moe,
+        moe_cache_mib: inst.moe_cache_mib,
+        moe_cache_cpu_share: inst.moe_cache_cpu_share,
       };
       const res = await fetch('/api/instances', {
         method: 'POST',
@@ -771,7 +830,12 @@ function llamaDeck() {
         top_k: inst.top_k,
         metrics: inst.metrics || false,
         spec_type: inst.spec_type || '',
+        model_draft: inst.model_draft || '',
         spec_draft_n_max: inst.spec_draft_n_max,
+        moe_mode: inst.cpu_moe ? 'all' : (inst.n_cpu_moe ? 'n' : 'off'),
+        n_cpu_moe: inst.n_cpu_moe,
+        moe_cache_mib: inst.moe_cache_mib,
+        moe_cache_cpu_share: inst.moe_cache_cpu_share,
       };
     },
 
@@ -821,7 +885,12 @@ function llamaDeck() {
         top_k: this.form.top_k,
         metrics: this.form.metrics,
         spec_type: this.form.spec_type || null,
+        model_draft: this.form.model_draft || null,
         spec_draft_n_max: this.form.spec_draft_n_max,
+        cpu_moe: this.form.moe_mode === 'all',
+        n_cpu_moe: this.form.moe_mode === 'n' ? (this.form.n_cpu_moe || null) : null,
+        moe_cache_mib: this.form.moe_mode !== 'off' ? (this.form.moe_cache_mib || null) : null,
+        moe_cache_cpu_share: this.form.moe_mode !== 'off' && this.form.moe_cache_cpu_share !== '' ? this.form.moe_cache_cpu_share : null,
       };
 
       try {
@@ -862,7 +931,8 @@ function llamaDeck() {
         parallel: 4, flash_attention: true, additional_args_raw: '',
         alias: '', cache_type_k: '', cache_type_v: '',
         temp: null, top_p: null, top_k: null, metrics: false,
-        spec_type: '', spec_draft_n_max: null,
+        spec_type: '', model_draft: '', spec_draft_n_max: null,
+        moe_mode: 'off', n_cpu_moe: null, moe_cache_mib: null, moe_cache_cpu_share: null,
       };
     },
 

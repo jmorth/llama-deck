@@ -203,17 +203,8 @@ class InstanceManager:
     def create_instance(self, data: InstanceCreate) -> LlamaInstance:
         port = data.port or self._next_port()
         inst = LlamaInstance(
-            name=data.name,
-            model_path=data.model_path,
-            gpus=data.gpus,
-            gpu_count=data.gpu_count,
+            **data.model_dump(exclude={"port"}),
             port=port,
-            host=data.host,
-            context_size=data.context_size,
-            n_gpu_layers=data.n_gpu_layers,
-            parallel=data.parallel,
-            flash_attention=data.flash_attention,
-            additional_args=data.additional_args,
             created_at=datetime.now(timezone.utc).isoformat(),
         )
         with self._lock:
@@ -374,12 +365,15 @@ class InstanceManager:
 
     # ── Model discovery ──────────────────────────────────────────────
 
-    def list_models(self) -> List[ModelFile]:
+    def list_models(self, include_drafts: bool = False) -> List[ModelFile]:
         """List .gguf files in the models directory.
 
         Tags are derived from the folder layout relative to models_dir:
           /models/<author>/<model>/<file>.gguf  →  author="Google", model_tag="Gemma 4"
         Kebab-case segments are title-cased; a leading 'v' followed by digits is kept as-is.
+
+        MTP draft files (mtp-*.gguf) are not usable as standalone models and are
+        skipped unless include_drafts is True (used for the --model-draft picker).
         """
         models_dir = Path(self.config.models_dir)
         if not models_dir.exists():
@@ -391,7 +385,7 @@ class InstanceManager:
             if "mmproj" in f.name.lower():
                 continue
             # Skip MTP draft models — not usable as standalone models
-            if f.name.lower().startswith("mtp-"):
+            if not include_drafts and f.name.lower().startswith("mtp-"):
                 continue
             size = f.stat().st_size
 
@@ -447,12 +441,14 @@ class InstanceManager:
             cmd.append("--metrics")
         if inst.spec_type:
             cmd.extend(["--spec-type", inst.spec_type])
-            # Auto-detect MTP draft model for draft-mtp spec type
-            if inst.spec_type == "draft-mtp":
-                model_dir = Path(inst.model_path).parent
-                mtp_files = sorted(model_dir.glob("mtp-*.gguf"))
-                if mtp_files:
-                    cmd.extend(["--model-draft", str(mtp_files[0])])
+        if inst.model_draft:
+            cmd.extend(["--model-draft", inst.model_draft])
+        elif inst.spec_type == "draft-mtp":
+            # Auto-detect MTP draft model when none was chosen explicitly
+            model_dir = Path(inst.model_path).parent
+            mtp_files = sorted(model_dir.glob("mtp-*.gguf"))
+            if mtp_files:
+                cmd.extend(["--model-draft", str(mtp_files[0])])
         # Auto-detect multimodal projector
         model_dir = Path(inst.model_path).parent
         mmproj_files = sorted(model_dir.glob("mmproj-*.gguf"))
@@ -460,6 +456,14 @@ class InstanceManager:
             cmd.extend(["--mmproj", str(mmproj_files[0])])
         if inst.spec_draft_n_max is not None:
             cmd.extend(["--spec-draft-n-max", str(inst.spec_draft_n_max)])
+        if inst.cpu_moe:
+            cmd.append("--cpu-moe")
+        if inst.n_cpu_moe:
+            cmd.extend(["--n-cpu-moe", str(inst.n_cpu_moe)])
+        if inst.moe_cache_mib:
+            cmd.extend(["--moe-cache-mib", str(inst.moe_cache_mib)])
+        if inst.moe_cache_cpu_share is not None:
+            cmd.extend(["--moe-cache-cpu-share", str(inst.moe_cache_cpu_share)])
         cmd.extend(inst.additional_args)
         return cmd
 

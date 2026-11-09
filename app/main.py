@@ -202,6 +202,12 @@ async def api_list_models():
     return _mgr().list_models()
 
 
+@app.get("/api/models/draft", response_model=list[ModelFile])
+async def api_list_draft_models():
+    """List .gguf files usable as a speculative draft model (--model-draft), including mtp-* files."""
+    return _mgr().list_models(include_drafts=True)
+
+
 # ── API: Overall status ──────────────────────────────────────────────
 
 @app.get("/api/status")

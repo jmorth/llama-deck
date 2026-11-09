@@ -11,6 +11,7 @@ Define models, assign GPUs, start/stop — all from a clean web dashboard.
 - **Multi-GPU management** — assign 1–N GPUs per instance via `CUDA_VISIBLE_DEVICES`
 - **GPU pinning or auto-assign** — pin instances to specific GPUs, or specify a count and let LlamaDeck auto-assign free GPUs on start
 - **Smart Start button** — disabled with tooltip when pinned GPUs are unavailable or not enough free GPUs for auto-assign
+- **MoE offload** — `--cpu-moe` / `--n-cpu-moe` expert placement plus the GPU expert cache (`--moe-cache-mib`, `--moe-cache-cpu-share`); the cache flags need a llama-server built from master after Nov 7, 2026
 - **Web dashboard** — real-time GPU monitoring, instance management, log viewer
 - **REST API** — full CRUD for instances, GPU status, model discovery
 - **Port auto-assignment** — configurable range, no conflicts
